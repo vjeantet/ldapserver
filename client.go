@@ -1,4 +1,4 @@
-package ldap
+package ldapserver
 
 import (
 	"bufio"
@@ -6,8 +6,6 @@ import (
 	"net"
 	"reflect"
 	"time"
-
-	"github.com/vjeantet/asn1-ber"
 )
 
 type client struct {
@@ -77,7 +75,7 @@ func (c *client) serve() {
 }
 
 func (c *client) write(data []byte) {
-	log.Printf("write hex=%x", data)
+	log.Printf("wrote hex=%x", data)
 	c.bw.Write(data)
 	c.bw.Flush()
 }
@@ -85,6 +83,7 @@ func (c *client) write(data []byte) {
 func (c *client) writeLdapResult(lr LDAPResponse) {
 	data := lr.encodeToAsn1()
 	log.Printf("write hex=%x", data)
+	log.Printf("client=%v", c)
 	c.bw.Write(data)
 	c.bw.Flush()
 }
@@ -105,12 +104,18 @@ func (c *client) ProcessRequestMessage(ldap_request LDAPRequest) {
 		}
 
 	case SearchRequest:
-		var r = SearchResponse{}
-		r.chan_out = c.chan_out
-
+		//r.chan_out = c.chan_out
 		var req SearchRequest = ldap_request.(SearchRequest)
-		c.srv.OnSearchRequest(&r, &req)
-		//c.ProcessSearchResponseMessage(*rm, *err)
+
+		req.SetClient(c)
+		var r = SearchResponse{Request: &req}
+		c.srv.SearchHandler(r, &req)
+
+		if req.searchResultDoneSent == false {
+			r.ResultCode = LDAPResultSuccess
+			c.writeLdapResult(r)
+			req.wroteMessage += 1
+		}
 
 	case UnbindRequest:
 		var req UnbindRequest = ldap_request.(UnbindRequest)
@@ -120,106 +125,4 @@ func (c *client) ProcessRequestMessage(ldap_request LDAPRequest) {
 	default:
 		log.Fatalf("unexpected type %T", v)
 	}
-}
-
-func (s *client) ProcessUnbindResponseMessage(r Message) {
-	s.rwc.Close()
-	log.Printf("Connection from %s closed", s.rwc.RemoteAddr().String())
-	return
-}
-
-func (s *client) ProcessSearchResponseMessage(rm Message, err Error) {
-	r := rm.ProtocolOp.(SearchResponse)
-	/*
-	   Target model
-	   - test err
-	   - Define ResponseMessages as needed
-	   - pass to the s.chan_out channel
-	*/
-
-	if err.ResultCode == LDAPResultSuccess {
-		for i := range r.Entries {
-			packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
-			packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(rm.MessageId), "MessageID"))
-
-			searchResponse := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationSearchResultEntry, nil, "SearchResultEntry")
-			searchResponse.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, r.Entries[i].DN, "LDAPDN"))
-			attributes_list := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Attributes List")
-
-			for j := range r.Entries[i].Attributes {
-				attributes := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Attributes")
-				attributes.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, r.Entries[i].Attributes[j].Name, "type"))
-				values := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSet, nil, "values")
-				for k := range r.Entries[i].Attributes[j].Values {
-					values.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, r.Entries[i].Attributes[j].Values[k], "val"))
-				}
-				attributes.AppendChild(values)
-				attributes_list.AppendChild(attributes)
-
-			}
-
-			searchResponse.AppendChild(attributes_list)
-
-			packet.AppendChild(searchResponse)
-			s.write(packet.Bytes())
-		}
-
-		packet2 := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
-		packet2.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(rm.MessageId), "MessageID"))
-
-		searchResultDone := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationSearchResultDone, nil, "Search done")
-		searchResultDone.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagEnumerated, uint64(LDAPResultSuccess), "ResultCode"))
-		searchResultDone.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, "", "MatchedDN"))
-		searchResultDone.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, "", "Message"))
-
-		packet2.AppendChild(searchResultDone)
-
-		log.Printf("searchResultDone response hex=%x", packet2.Bytes())
-
-		/*
-			Target Model
-			Encode the ResponseMessage to Packet
-			Write the packet to the buffer out
-		*/
-		log.Printf("<<<<<<<<<<<<<< [%d] %s", s.Numero, reflect.TypeOf(rm.ProtocolOp).Name())
-
-		s.write(packet2.Bytes())
-
-	} else {
-		packet2 := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
-		packet2.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(rm.MessageId), "MessageID"))
-
-		searchResultDone := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationSearchResultDone, nil, "Search done")
-		searchResultDone.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagEnumerated, uint64(LDAPResultOperationsError), "ResultCode"))
-		searchResultDone.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, "", "MatchedDN"))
-		searchResultDone.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, "", "Message"))
-
-		packet2.AppendChild(searchResultDone)
-
-		log.Printf("searchResultDone response hex=%x", packet2.Bytes())
-
-		s.write(packet2.Bytes())
-
-	}
-}
-
-func (c *client) ProcessBindResponseMessage(br BindResponse) {
-
-	packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
-	packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(br.Request.GetMessageId()), "MessageID"))
-
-	bindResponse := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationBindResponse, nil, "Bind Response")
-	bindResponse.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagEnumerated, uint64(LDAPResultInvalidCredentials), "ResultCode"))
-	bindResponse.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, br.MatchedDN, "MatchedDN"))
-	bindResponse.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, br.DiagnosticMessage, "DiagnosticMessage"))
-
-	packet.AppendChild(bindResponse)
-	/*
-		Target Model
-		Encode the Message to Packet
-		Write the packet to the buffer out
-	*/
-	log.Printf("<<<<<<<<<<<<<< [%d] %s", c.Numero, reflect.TypeOf(br).Name())
-
-	c.write(packet.Bytes())
 }

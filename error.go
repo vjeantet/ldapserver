@@ -1,15 +1,12 @@
-package ldap
+package ldapserver
 
-type Error struct {
-	Err        error
-	ResultCode uint8
+func BindError(r BindResponse, ldapCode int, error string) {
+	r.ResultCode = ldapCode
+	r.DiagnosticMessage = error
+	r.Send()
 }
 
-func NewError(ResultCode uint8, Err error) *Error {
-	return &Error{ResultCode: ResultCode, Err: Err}
-}
-
-func BindError(r BindResponse, error string, ldapCode int) {
+func SearchError(r SearchResponse, ldapCode int, error string) {
 	r.ResultCode = ldapCode
 	r.DiagnosticMessage = error
 	r.Send()

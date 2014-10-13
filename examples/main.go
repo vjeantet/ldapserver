@@ -4,7 +4,7 @@ import (
 	"log"
 	"time"
 
-	"github.com/vjeantet/ldapserver"
+	ldap "github.com/vjeantet/ldapserver"
 )
 
 func main() {
@@ -12,7 +12,7 @@ func main() {
 	server := ldap.Server{Addr: ":1389", ReadTimeout: time.Second * 2}
 
 	//Set Search request Handler
-	server.OnSearchRequest = handleSearch
+	server.SetSearchHandler(handleSearch)
 
 	//Set Bind request Handler
 	server.SetBindHandler(handlerBind)
@@ -34,19 +34,18 @@ func handlerUnbind(r *ldap.UnbindRequest) {
 func handlerBind(w ldap.BindResponse, r *ldap.BindRequest) {
 	if string(r.GetLogin()) != "myLogin" {
 		log.Print("Bind failed")
-		ldap.BindError(w, "login / mot de passe invalide", ldap.LDAPResultInvalidCredentials)
+		ldap.BindError(w, ldap.LDAPResultInvalidCredentials, "login / mot de passe invalide")
 		return
 	}
 	return
 }
 
-func handleSearch(w *ldap.SearchResponse, r *ldap.SearchRequest) *ldap.Error {
+func handleSearch(w ldap.SearchResponse, r *ldap.SearchRequest) {
 	log.Printf("Request BaseDn=%s", r.GetBaseDN())
 	log.Printf("Request Filter=%s", r.GetFilter())
 	log.Printf("Request Attributes=%s", r.GetAttributes())
 
-	e := new(ldap.Entry)
-
+	e := new(ldap.SearchResultEntry)
 	e.SetDn("cn=Valere JEANTET, " + string(r.GetBaseDN()))
 	e.AddAttribute("mail", "valere.jeantet@gmail.com")
 	e.AddAttribute("company", "SODADI")
@@ -55,13 +54,12 @@ func handleSearch(w *ldap.SearchResponse, r *ldap.SearchRequest) *ldap.Error {
 	e.AddAttribute("mobile", "0612324567")
 	e.AddAttribute("telephoneNumber", "0612324567")
 	e.AddAttribute("cn", "Valère JEANTET")
-	w.AddEntry(e)
+	w.SendEntry(e)
 
-	e = new(ldap.Entry)
+	e = new(ldap.SearchResultEntry)
 	e.SetDn("cn=Claire Thomas, " + string(r.GetBaseDN()))
 	e.AddAttribute("mail", "claire.thomas@gmail.com")
 	e.AddAttribute("cn", "Claire THOMAS")
-	w.AddEntry(e)
+	w.SendEntry(e)
 
-	return ldap.NewError(ldap.LDAPResultSuccess, nil)
 }

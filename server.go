@@ -1,4 +1,4 @@
-package ldap
+package ldapserver
 
 import (
 	"bufio"
@@ -23,19 +23,23 @@ type Server struct {
 	// bindHandler called on bind request
 	BindHandler func(BindResponse, *BindRequest)
 
-	// OnSearchRequest called on search request
-	OnSearchRequest func(*SearchResponse, *SearchRequest) *Error
+	// SearchHandler called on search request
+	SearchHandler func(SearchResponse, *SearchRequest)
 
 	// UnbindRequestHandler called on unbind request
 	UnbindHandler func(*UnbindRequest)
 }
 
-func (srv *Server) SetBindHandler(fn func(BindResponse, *BindRequest)) {
-	srv.BindHandler = fn
+func (s *Server) SetBindHandler(fn func(BindResponse, *BindRequest)) {
+	s.BindHandler = fn
 }
 
-func (srv *Server) SetUnbindHandler(fn func(*UnbindRequest)) {
-	srv.UnbindHandler = fn
+func (s *Server) SetUnbindHandler(fn func(*UnbindRequest)) {
+	s.UnbindHandler = fn
+}
+
+func (s *Server) SetSearchHandler(fn func(SearchResponse, *SearchRequest)) {
+	s.SearchHandler = fn
 }
 
 // Returns the server's hostname

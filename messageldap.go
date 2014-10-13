@@ -1,11 +1,9 @@
-package ldap
+package ldapserver
 
 //TODO remove asn1 dependancies here
 import (
 	"encoding/asn1"
 	"fmt"
-
-	"github.com/vjeantet/asn1-ber"
 )
 
 type ProtocolOp interface {
@@ -106,6 +104,9 @@ type SearchRequest struct {
 		Attributes   [][]byte
 		Filter       string
 	}
+	searchResultDoneSent      bool
+	searchResultEntrySent     int
+	SearchResultReferenceSent int
 }
 
 func (s *SearchRequest) GetTypesOnly() bool {
@@ -174,21 +175,22 @@ type BindResponse struct {
 }
 
 func (b *BindResponse) Send() {
-	b.Request.GetClient().write(b.encodeToAsn1())
+	b.Request.GetClient().writeLdapResult(b)
 	b.Request.wroteMessage += 1
 }
 
+func (sr *SearchResponse) Send() {
+	sr.Request.GetClient().writeLdapResult(sr)
+
+	sr.Request.wroteMessage += 1
+}
+
+func (sr SearchResponse) encodeToAsn1() []byte {
+	return NewMessagePacket(sr).Bytes()
+}
+
 func (b BindResponse) encodeToAsn1() []byte {
-	packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
-	packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(b.Request.GetMessageId()), "MessageID"))
-
-	bindResponse := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationBindResponse, nil, "Bind Response")
-	bindResponse.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagEnumerated, uint64(b.ResultCode), "ResultCode"))
-	bindResponse.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, b.MatchedDN, "MatchedDN"))
-	bindResponse.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, b.DiagnosticMessage, "DiagnosticMessage"))
-
-	packet.AppendChild(bindResponse)
-	return packet.Bytes()
+	return NewMessagePacket(b).Bytes()
 }
 
 func (r BindResponse) String() string {
@@ -197,44 +199,50 @@ func (r BindResponse) String() string {
 
 type SearchResponse struct {
 	LDAPResult
-
-	Entries   []*Entry
+	Request   *SearchRequest
 	Referrals []string
 	//Controls []Control
-	chan_out chan Message
+	chan_out chan LDAPResponse
 }
 
-func (sr *SearchResponse) AddEntry(entry *Entry) {
-	sr.Entries = append(sr.Entries, entry)
+func (s *SearchResponse) SendEntry(entry *SearchResultEntry) {
+	entry.request = s.Request
+	s.Request.GetClient().writeLdapResult(entry)
+	s.Request.searchResultEntrySent += 1
+	s.Request.wroteMessage += 1
+}
+
+func (s *SearchResponse) SendResultDone(ldapCode int, message string) {
+	s.ResultCode = ldapCode
+	s.DiagnosticMessage = message
+	s.Send()
+	s.Request.searchResultDoneSent = true
 }
 
 func (r SearchResponse) String() string {
 	return ""
 }
 
-type Entry struct {
+type SearchResultEntry struct {
+	request    *SearchRequest
 	DN         string
 	Attributes []*EntryAttribute
 }
 
-func (e *Entry) SetDn(dn string) {
+func (e *SearchResultEntry) SetDn(dn string) {
 	e.DN = dn
 }
 
-func (e *Entry) AddAttribute(name string, values ...string) {
+func (e *SearchResultEntry) AddAttribute(name string, values ...string) {
 	var ea = &EntryAttribute{Name: name, Values: values}
 	e.Attributes = append(e.Attributes, ea)
+}
+
+func (s SearchResultEntry) encodeToAsn1() []byte {
+	return NewMessagePacket(s).Bytes()
 }
 
 type EntryAttribute struct {
 	Name   string
 	Values []string
-}
-
-type UnbindResponse struct {
-	LDAPResult
-}
-
-func (msg UnbindResponse) String() string {
-	return ""
 }
