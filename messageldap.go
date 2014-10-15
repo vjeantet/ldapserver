@@ -175,13 +175,12 @@ type BindResponse struct {
 }
 
 func (b *BindResponse) Send() {
-	b.Request.GetClient().writeLdapResult(b)
+	b.Request.GetClient().chan_out <- b
 	b.Request.wroteMessage += 1
 }
 
 func (sr *SearchResponse) Send() {
-	sr.Request.GetClient().writeLdapResult(sr)
-
+	sr.Request.GetClient().chan_out <- sr
 	sr.Request.wroteMessage += 1
 }
 
@@ -207,7 +206,7 @@ type SearchResponse struct {
 
 func (s *SearchResponse) SendEntry(entry *SearchResultEntry) {
 	entry.request = s.Request
-	s.Request.GetClient().writeLdapResult(entry)
+	s.Request.GetClient().chan_out <- entry
 	s.Request.searchResultEntrySent += 1
 	s.Request.wroteMessage += 1
 }

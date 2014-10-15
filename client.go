@@ -14,7 +14,7 @@ type client struct {
 	rwc       net.Conn
 	br        *bufio.Reader
 	bw        *bufio.Writer
-	chan_out  chan Message
+	chan_out  chan LDAPResponse
 	helloType string
 	helloHost string
 }
@@ -36,7 +36,23 @@ func (c *client) serve() {
 		}
 	}
 
-	c.chan_out = make(chan Message, 20)
+	c.chan_out = make(chan LDAPResponse, 20)
+
+	done := make(chan bool)
+
+	go func() {
+		for {
+			select {
+			case <-done:
+				c.close()
+				log.Print("-------------- Leaving because of channel")
+				break
+			case msg := <-c.chan_out:
+				log.Printf("------------- channel msg=%T", msg)
+				c.writeLdapResult(msg)
+			}
+		}
+	}()
 
 	for {
 
@@ -66,18 +82,18 @@ func (c *client) serve() {
 		log.Printf(">>>>>>>>>>>>>> [%d] %s", c.Numero, reflect.TypeOf(ldap_request).Name())
 
 		if _, ok := ldap_request.(UnbindRequest); ok {
-			log.Printf("Connection client [%d] closed", c.Numero)
-			c.rwc.Close()
+			done <- true
 			break
+		} else {
+			go c.ProcessRequestMessage(ldap_request)
 		}
-		go c.ProcessRequestMessage(ldap_request)
+
 	}
 }
 
-func (c *client) write(data []byte) {
-	log.Printf("wrote hex=%x", data)
-	c.bw.Write(data)
-	c.bw.Flush()
+func (c *client) close() {
+	c.rwc.Close()
+	log.Printf("Connection client [%d] closed", c.Numero)
 }
 
 func (c *client) writeLdapResult(lr LDAPResponse) {
@@ -99,12 +115,11 @@ func (c *client) ProcessRequestMessage(ldap_request LDAPRequest) {
 
 		if req.wroteMessage == 0 {
 			res.ResultCode = LDAPResultSuccess
-			c.writeLdapResult(res)
+			c.chan_out <- res
 			req.wroteMessage += 1
 		}
 
 	case SearchRequest:
-		//r.chan_out = c.chan_out
 		var req SearchRequest = ldap_request.(SearchRequest)
 
 		req.SetClient(c)
@@ -113,14 +128,12 @@ func (c *client) ProcessRequestMessage(ldap_request LDAPRequest) {
 
 		if req.searchResultDoneSent == false {
 			r.ResultCode = LDAPResultSuccess
-			c.writeLdapResult(r)
+			c.chan_out <- r
 			req.wroteMessage += 1
 		}
 
 	case UnbindRequest:
-		var req UnbindRequest = ldap_request.(UnbindRequest)
-		c.srv.UnbindHandler(&req)
-		c.rwc.Close()
+		log.Fatal("Unbind Request sould not be handled here")
 
 	default:
 		log.Fatalf("unexpected type %T", v)
