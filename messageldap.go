@@ -1,10 +1,6 @@
 package ldapserver
 
-//TODO: remove asn1 dependancies here
-import (
-	"encoding/asn1"
-	"fmt"
-)
+import "fmt"
 
 type ProtocolOp interface {
 	String() string
@@ -92,7 +88,6 @@ type SearchRequest struct {
 		SizeLimit    int
 		TimeLimit    int
 		TypesOnly    bool
-		FilterRaw    asn1.RawValue
 		Attributes   [][]byte
 		Filter       string
 	}
@@ -104,9 +99,7 @@ type SearchRequest struct {
 func (s *SearchRequest) GetTypesOnly() bool {
 	return s.ProtocolOp.TypesOnly
 }
-func (s *SearchRequest) GetFilterRaw() asn1.RawValue {
-	return s.ProtocolOp.FilterRaw
-}
+
 func (s *SearchRequest) GetAttributes() [][]byte {
 	return s.ProtocolOp.Attributes
 }
