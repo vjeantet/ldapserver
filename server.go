@@ -91,7 +91,7 @@ func (srv *Server) Serve(ln net.Listener) error {
 		}
 		i = i + 1
 		cli.Numero = i
-		log.Printf("Connection from %s accepted", cli.rwc.RemoteAddr().String())
+		log.Printf("Connection client [%d] from %s accepted", cli.Numero, cli.rwc.RemoteAddr().String())
 		go cli.serve()
 	}
 	panic("not reached")

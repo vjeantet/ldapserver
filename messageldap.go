@@ -1,6 +1,6 @@
 package ldapserver
 
-//TODO remove asn1 dependancies here
+//TODO: remove asn1 dependancies here
 import (
 	"encoding/asn1"
 	"fmt"
@@ -21,7 +21,7 @@ type Message struct {
 	MessageId    int
 	ProtocolOp   ProtocolOp
 	Controls     []interface{}
-	client       *client
+	out          chan LDAPResponse
 }
 
 func (m Message) GetMessageId() int {
@@ -33,14 +33,6 @@ func (m Message) String() string {
 }
 func (m Message) GetProtocolOp() ProtocolOp {
 	return m.ProtocolOp
-}
-
-func (m *Message) SetClient(c *client) {
-	m.client = c
-}
-
-func (m *Message) GetClient() *client {
-	return m.client
 }
 
 // BIND REQUEST MESSAGE
@@ -175,12 +167,12 @@ type BindResponse struct {
 }
 
 func (b *BindResponse) Send() {
-	b.Request.GetClient().chan_out <- b
+	b.Request.out <- b
 	b.Request.wroteMessage += 1
 }
 
 func (sr *SearchResponse) Send() {
-	sr.Request.GetClient().chan_out <- sr
+	sr.Request.out <- sr
 	sr.Request.wroteMessage += 1
 }
 
@@ -206,7 +198,7 @@ type SearchResponse struct {
 
 func (s *SearchResponse) SendEntry(entry *SearchResultEntry) {
 	entry.request = s.Request
-	s.Request.GetClient().chan_out <- entry
+	s.Request.out <- *entry //NOTE : Why do i need to * a *SearchResultEntry ?
 	s.Request.searchResultEntrySent += 1
 	s.Request.wroteMessage += 1
 }

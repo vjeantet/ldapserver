@@ -41,9 +41,9 @@ func handlerBind(w ldap.BindResponse, r *ldap.BindRequest) {
 }
 
 func handleSearch(w ldap.SearchResponse, r *ldap.SearchRequest) {
-	log.Printf("Request BaseDn=%s", r.GetBaseDN())
-	log.Printf("Request Filter=%s", r.GetFilter())
-	log.Printf("Request Attributes=%s", r.GetAttributes())
+	// log.Printf("Request BaseDn=%s", r.GetBaseDN())
+	// log.Printf("Request Filter=%s", r.GetFilter())
+	// log.Printf("Request Attributes=%s", r.GetAttributes())
 
 	e := new(ldap.SearchResultEntry)
 	e.SetDn("cn=Valere JEANTET, " + string(r.GetBaseDN()))

@@ -36,21 +36,27 @@ func (c *client) serve() {
 		}
 	}
 
+	// Create the ldap response queue to be writted to client (buffered to 20)
+	// buffered to 20 means that If client is slow to handler responses, Server
+	// Handlers will stop to send more respones
 	c.chan_out = make(chan LDAPResponse, 20)
 
 	done := make(chan bool)
 
 	go func() {
 		for {
+			if c.chan_out == nil && done == nil {
+				break
+			}
 			select {
 			case <-done:
+				done = nil
 				c.close()
-				log.Print("-------------- Leaving because of channel")
 				break
 			case msg := <-c.chan_out:
-				log.Printf("------------- channel msg=%T", msg)
 				c.writeLdapResult(msg)
 			}
+
 		}
 	}()
 
@@ -67,8 +73,6 @@ func (c *client) serve() {
 			return
 		}
 
-		log.Printf("input hex=%x", message_packet.Packet.Bytes())
-
 		//Convert binaryMessage to a ldap RequestMessage
 		var ldap_request LDAPRequest
 		ldap_request, err = message_packet.getRequestMessage()
@@ -78,8 +82,11 @@ func (c *client) serve() {
 			break
 		}
 
-		//@Todo When the ldap_request can not be buffered, send a BusyLdapMessage
-		log.Printf(">>>>>>>>>>>>>> [%d] %s", c.Numero, reflect.TypeOf(ldap_request).Name())
+		// TODO: Use a implementation to limit runnuning request by client
+		// NOTE test
+		// And WHILE the limit is reached THEN send a BusyLdapMessage
+
+		log.Printf("<<< %d - %s - hex=%x", c.Numero, reflect.TypeOf(ldap_request).Name(), message_packet.Packet.Bytes())
 
 		if _, ok := ldap_request.(UnbindRequest); ok {
 			done <- true
@@ -92,14 +99,15 @@ func (c *client) serve() {
 }
 
 func (c *client) close() {
+	c.chan_out = nil
 	c.rwc.Close()
 	log.Printf("Connection client [%d] closed", c.Numero)
 }
 
 func (c *client) writeLdapResult(lr LDAPResponse) {
+	//TODO: encodingToAsn1 should not be reponsability of LDAPResponse, maybe messagepacket
 	data := lr.encodeToAsn1()
-	log.Printf("write hex=%x", data)
-	log.Printf("client=%v", c)
+	log.Printf(">>> %d - %s - hex=%x", c.Numero, reflect.TypeOf(lr).Name(), data)
 	c.bw.Write(data)
 	c.bw.Flush()
 }
@@ -109,7 +117,7 @@ func (c *client) ProcessRequestMessage(ldap_request LDAPRequest) {
 	switch v := ldap_request.(type) {
 	case BindRequest:
 		var req = ldap_request.(BindRequest)
-		req.SetClient(c)
+		req.out = c.chan_out
 		var res = BindResponse{Request: &req}
 		c.srv.BindHandler(res, &req)
 
@@ -121,8 +129,7 @@ func (c *client) ProcessRequestMessage(ldap_request LDAPRequest) {
 
 	case SearchRequest:
 		var req SearchRequest = ldap_request.(SearchRequest)
-
-		req.SetClient(c)
+		req.out = c.chan_out
 		var r = SearchResponse{Request: &req}
 		c.srv.SearchHandler(r, &req)
 
