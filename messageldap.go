@@ -152,6 +152,10 @@ type LDAPResult struct {
 	referral          interface{}
 }
 
+func (l LDAPResult) encodeToAsn1() []byte {
+	return NewMessagePacket(l).Bytes()
+}
+
 // BindResponse
 type BindResponse struct {
 	LDAPResult
@@ -160,13 +164,17 @@ type BindResponse struct {
 }
 
 func (b *BindResponse) Send() {
-	b.Request.out <- b
-	b.Request.wroteMessage += 1
+	if b.Request.out != nil {
+		b.Request.out <- b
+		b.Request.wroteMessage += 1
+	}
 }
 
 func (sr *SearchResponse) Send() {
-	sr.Request.out <- sr
-	sr.Request.wroteMessage += 1
+	if sr.Request.out != nil {
+		sr.Request.out <- sr
+		sr.Request.wroteMessage += 1
+	}
 }
 
 func (sr SearchResponse) encodeToAsn1() []byte {
@@ -191,9 +199,11 @@ type SearchResponse struct {
 
 func (s *SearchResponse) SendEntry(entry *SearchResultEntry) {
 	entry.request = s.Request
-	s.Request.out <- *entry //NOTE : Why do i need to * a *SearchResultEntry ?
-	s.Request.searchResultEntrySent += 1
-	s.Request.wroteMessage += 1
+	if s.Request.out != nil {
+		s.Request.out <- *entry //NOTE : Why do i need to * a *SearchResultEntry ?
+		s.Request.searchResultEntrySent += 1
+		s.Request.wroteMessage += 1
+	}
 }
 
 func (s *SearchResponse) SendResultDone(ldapCode int, message string) {

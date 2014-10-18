@@ -6,6 +6,7 @@ import (
 	"net"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -15,6 +16,8 @@ type Server struct {
 	Hostname     string        // optional Hostname to announce; "" to use system hostname
 	ReadTimeout  time.Duration // optional read timeout
 	WriteTimeout time.Duration // optional write timeout
+	wg           sync.WaitGroup
+	ch           chan bool
 
 	// OnNewConnection, if non-nil, is called on new connections.
 	// If it returns non-nil, the connection is closed.
@@ -63,7 +66,13 @@ func (srv *Server) ListenAndServe() error {
 	if addr == "" {
 		addr = ":389"
 	}
-	ln, e := net.Listen("tcp", addr)
+
+	laddr, err := net.ResolveTCPAddr("tcp", addr)
+	if nil != err {
+		log.Fatalln(err)
+	}
+
+	ln, e := net.ListenTCP("tcp", laddr)
 	if e != nil {
 		return e
 	}
@@ -72,29 +81,50 @@ func (srv *Server) ListenAndServe() error {
 	return srv.Serve(ln)
 }
 
+func (s *Server) Stop() {
+	log.Print("!!!!!!!! Closing Server !!!!!!!!")
+	close(s.ch)
+	log.Print("waiting for server server's goroutines to end...")
+	s.wg.Wait()
+	log.Print("server's goroutines ended !")
+}
+
 // Handle requests messages on the ln listener
-func (srv *Server) Serve(ln net.Listener) error {
+func (srv *Server) Serve(ln *net.TCPListener) error {
 	defer ln.Close()
+	srv.ch = make(chan bool)
 	i := 0
 	for {
-		rw, e := ln.Accept()
-		if e != nil {
-			if ne, ok := e.(net.Error); ok && ne.Temporary() {
-				log.Printf("ldapd: Accept error: %v", e)
+		select {
+		case <-srv.ch:
+			log.Print("Stopping server")
+			ln.Close()
+			return nil
+		default:
+		}
+
+		ln.SetDeadline(time.Now().Add(1e9))
+		rw, err := ln.AcceptTCP()
+		if nil != err {
+			if opErr, ok := err.(*net.OpError); ok && opErr.Timeout() {
 				continue
 			}
-			return e
+			log.Println(err)
 		}
+		//rw.SetDeadline(time.Now().Add(1e9))
 		cli, err := srv.newClient(rw)
 		if err != nil {
 			continue
 		}
+
 		i = i + 1
 		cli.Numero = i
 		log.Printf("Connection client [%d] from %s accepted", cli.Numero, cli.rwc.RemoteAddr().String())
+		srv.wg.Add(1)
 		go cli.serve()
 	}
-	panic("not reached")
+
+	return nil
 }
 
 // Return a new session with the connection

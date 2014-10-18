@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"reflect"
+	"sync"
 	"time"
 )
 
@@ -17,6 +18,8 @@ type client struct {
 	chan_out  chan LDAPResponse
 	helloType string
 	helloHost string
+	wg        sync.WaitGroup
+	closing   bool
 }
 
 func (s *client) errorf(format string, args ...interface{}) {
@@ -28,7 +31,8 @@ func (s *client) Addr() net.Addr {
 }
 
 func (c *client) serve() {
-	defer c.rwc.Close()
+	defer c.close()
+
 	if onc := c.srv.OnNewConnection; onc != nil {
 		if err := onc(c.rwc); err != nil {
 			log.Printf("Erreur OnNewConnection: %s", err)
@@ -41,23 +45,13 @@ func (c *client) serve() {
 	// Handlers will stop to send more respones
 	c.chan_out = make(chan LDAPResponse, 20)
 
-	done := make(chan bool)
-
 	go func() {
-		for {
-			if c.chan_out == nil && done == nil {
-				break
-			}
-			select {
-			case <-done:
-				done = nil
-				c.close()
-				break
-			case msg := <-c.chan_out:
-				c.writeLdapResult(msg)
-			}
+		defer log.Println("output goroutine. stopped")
 
+		for msg := range c.chan_out {
+			c.writeLdapResult(msg)
 		}
+
 	}()
 
 	for {
@@ -73,13 +67,21 @@ func (c *client) serve() {
 			return
 		}
 
+		select {
+		case <-c.srv.ch:
+			log.Print("Stopping client")
+			//TODO: return a UnwillingToPerform to the message_packet ldap_request
+			return
+		default:
+		}
+
 		//Convert binaryMessage to a ldap RequestMessage
 		var ldap_request LDAPRequest
 		ldap_request, err = message_packet.getRequestMessage()
 
 		if err != nil {
 			log.Printf("Error : %s", err.Error())
-			break
+			return
 		}
 
 		// TODO: Use a implementation to limit runnuning request by client
@@ -89,18 +91,28 @@ func (c *client) serve() {
 		log.Printf("<<< %d - %s - hex=%x", c.Numero, reflect.TypeOf(ldap_request).Name(), message_packet.Packet.Bytes())
 
 		if _, ok := ldap_request.(UnbindRequest); ok {
-			done <- true
-			break
-		} else {
-			go c.ProcessRequestMessage(ldap_request)
+			return
 		}
 
+		c.wg.Add(1)
+		log.Print("wg_c +1")
+		log.Printf("start one mode go %s", reflect.TypeOf(ldap_request).Name())
+		go c.ProcessRequestMessage(ldap_request)
+
 	}
+
 }
 
 func (c *client) close() {
-	c.chan_out = nil
+	c.closing = true
+	log.Print("waiting for wg_c...")
+	c.wg.Wait()
+	close(c.chan_out)
+	log.Print("waiting for wg_c done !")
+
 	c.rwc.Close()
+
+	c.srv.wg.Done()
 	log.Printf("Connection client [%d] closed", c.Numero)
 }
 
@@ -113,6 +125,8 @@ func (c *client) writeLdapResult(lr LDAPResponse) {
 }
 
 func (c *client) ProcessRequestMessage(ldap_request LDAPRequest) {
+	defer c.wg.Done()
+	defer log.Print("wg_c -1")
 
 	switch v := ldap_request.(type) {
 	case BindRequest:
@@ -121,7 +135,7 @@ func (c *client) ProcessRequestMessage(ldap_request LDAPRequest) {
 		var res = BindResponse{Request: &req}
 		c.srv.BindHandler(res, &req)
 
-		if req.wroteMessage == 0 {
+		if req.wroteMessage == 0 && c.chan_out != nil {
 			res.ResultCode = LDAPResultSuccess
 			c.chan_out <- res
 			req.wroteMessage += 1
@@ -132,8 +146,7 @@ func (c *client) ProcessRequestMessage(ldap_request LDAPRequest) {
 		req.out = c.chan_out
 		var r = SearchResponse{Request: &req}
 		c.srv.SearchHandler(r, &req)
-
-		if req.searchResultDoneSent == false {
+		if req.searchResultDoneSent == false && c.chan_out != nil {
 			r.ResultCode = LDAPResultSuccess
 			c.chan_out <- r
 			req.wroteMessage += 1
@@ -145,4 +158,5 @@ func (c *client) ProcessRequestMessage(ldap_request LDAPRequest) {
 	default:
 		log.Fatalf("unexpected type %T", v)
 	}
+
 }

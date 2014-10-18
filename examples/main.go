@@ -2,6 +2,9 @@ package main
 
 import (
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	ldap "github.com/vjeantet/ldapserver"
@@ -9,7 +12,7 @@ import (
 
 func main() {
 	//Create a new LDAP Server
-	server := ldap.Server{Addr: ":1389", ReadTimeout: time.Second * 2}
+	server := ldap.Server{Addr: ":1389", ReadTimeout: time.Second * 6}
 
 	//Set Search request Handler
 	server.SetSearchHandler(handleSearch)
@@ -20,8 +23,15 @@ func main() {
 	//Set Unbind request Handler
 	server.SetUnbindHandler(handlerUnbind)
 
-	err := server.ListenAndServe()
-	log.Printf("err = %s", err)
+	go server.ListenAndServe()
+	//log.Printf("err = %s", err)
+
+	// Handle SIGINT and SIGTERM.
+	ch := make(chan os.Signal)
+	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
+	log.Println(<-ch)
+
+	server.Stop()
 
 }
 
