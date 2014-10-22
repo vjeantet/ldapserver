@@ -10,24 +10,18 @@ import (
 )
 
 type client struct {
-	Numero    int
-	srv       *Server
-	rwc       net.Conn
-	br        *bufio.Reader
-	bw        *bufio.Writer
-	chan_out  chan LDAPResponse
-	helloType string
-	helloHost string
-	wg        sync.WaitGroup
-	closing   bool
+	Numero   int
+	srv      *Server
+	rwc      net.Conn
+	br       *bufio.Reader
+	bw       *bufio.Writer
+	chan_out chan response
+	wg       sync.WaitGroup
+	closing  bool
 }
 
-func (s *client) errorf(format string, args ...interface{}) {
-	log.Printf("Client error: "+format, args...)
-}
-
-func (s *client) Addr() net.Addr {
-	return s.rwc.RemoteAddr()
+func (c *client) Addr() net.Addr {
+	return c.rwc.RemoteAddr()
 }
 
 func (c *client) serve() {
@@ -43,7 +37,7 @@ func (c *client) serve() {
 	// Create the ldap response queue to be writted to client (buffered to 20)
 	// buffered to 20 means that If client is slow to handler responses, Server
 	// Handlers will stop to send more respones
-	c.chan_out = make(chan LDAPResponse, 20)
+	c.chan_out = make(chan response, 20)
 
 	go func() {
 		defer log.Println("output goroutine. stopped")
@@ -70,14 +64,14 @@ func (c *client) serve() {
 		select {
 		case <-c.srv.ch:
 			log.Print("Stopping client")
-			//TODO: return a UnwillingToPerform to the message_packet ldap_request
+			//TODO: return a UnwillingToPerform to the message_packet request
 			return
 		default:
 		}
 
 		//Convert binaryMessage to a ldap RequestMessage
-		var ldap_request LDAPRequest
-		ldap_request, err = message_packet.getRequestMessage()
+		var request request
+		request, err = message_packet.getRequestMessage()
 
 		if err != nil {
 			log.Printf("Error : %s", err.Error())
@@ -88,16 +82,16 @@ func (c *client) serve() {
 		// NOTE test
 		// And WHILE the limit is reached THEN send a BusyLdapMessage
 
-		log.Printf("<<< %d - %s - hex=%x", c.Numero, reflect.TypeOf(ldap_request).Name(), message_packet.Packet.Bytes())
+		log.Printf("<<< %d - %s - hex=%x", c.Numero, reflect.TypeOf(request).Name(), message_packet.Packet.Bytes())
 
-		if _, ok := ldap_request.(UnbindRequest); ok {
+		if _, ok := request.(UnbindRequest); ok {
 			return
 		}
 
 		c.wg.Add(1)
 		log.Print("wg_c +1")
-		log.Printf("start one mode go %s", reflect.TypeOf(ldap_request).Name())
-		go c.ProcessRequestMessage(ldap_request)
+		log.Printf("start one mode go %s", reflect.TypeOf(request).Name())
+		go c.ProcessRequestMessage(request)
 
 	}
 
@@ -116,37 +110,37 @@ func (c *client) close() {
 	log.Printf("Connection client [%d] closed", c.Numero)
 }
 
-func (c *client) writeLdapResult(lr LDAPResponse) {
-	//TODO: encodingToAsn1 should not be reponsability of LDAPResponse, maybe messagepacket
+func (c *client) writeLdapResult(lr response) {
+	//TODO: encodingToAsn1 should not be reponsability of Response, maybe messagepacket
 	data := lr.encodeToAsn1()
 	log.Printf(">>> %d - %s - hex=%x", c.Numero, reflect.TypeOf(lr).Name(), data)
 	c.bw.Write(data)
 	c.bw.Flush()
 }
 
-func (c *client) ProcessRequestMessage(ldap_request LDAPRequest) {
+func (c *client) ProcessRequestMessage(request request) {
 	defer c.wg.Done()
 	defer log.Print("wg_c -1")
 
-	switch v := ldap_request.(type) {
+	switch v := request.(type) {
 	case BindRequest:
-		var req = ldap_request.(BindRequest)
+		var req = request.(BindRequest)
 		req.out = c.chan_out
-		var res = BindResponse{Request: &req}
+		var res = BindResponse{request: &req}
 		c.srv.BindHandler(res, &req)
 
-		if req.wroteMessage == 0 && c.chan_out != nil {
+		if req.wroteMessage == 0 {
 			res.ResultCode = LDAPResultSuccess
 			c.chan_out <- res
 			req.wroteMessage += 1
 		}
 
 	case SearchRequest:
-		var req SearchRequest = ldap_request.(SearchRequest)
+		var req SearchRequest = request.(SearchRequest)
 		req.out = c.chan_out
-		var r = SearchResponse{Request: &req}
+		var r = SearchResponse{request: &req}
 		c.srv.SearchHandler(r, &req)
-		if req.searchResultDoneSent == false && c.chan_out != nil {
+		if req.searchResultDoneSent == false {
 			r.ResultCode = LDAPResultSuccess
 			c.chan_out <- r
 			req.wroteMessage += 1

@@ -2,86 +2,86 @@ package ldapserver
 
 import "fmt"
 
-type ProtocolOp interface {
+type protocolOp interface {
 	String() string
 }
 
-type LDAPRequest interface {
+type request interface {
 	GetMessageId() int
 	String() string
-	GetProtocolOp() ProtocolOp
+	GetProtocolOp() protocolOp
 }
 
-type Message struct {
+type message struct {
 	wroteMessage int
-	MessageId    int
-	ProtocolOp   ProtocolOp
+	messageId    int
+	protocolOp   protocolOp
 	Controls     []interface{}
-	out          chan LDAPResponse
+	out          chan response
 }
 
-func (m Message) GetMessageId() int {
-	return m.MessageId
+func (m message) GetMessageId() int {
+	return m.messageId
 }
 
-func (m Message) String() string {
-	return fmt.Sprintf("MessageId=%d, %s", m.MessageId, m.ProtocolOp.String())
+func (m message) String() string {
+	return fmt.Sprintf("MessageId=%d, %s", m.messageId, m.protocolOp.String())
 }
-func (m Message) GetProtocolOp() ProtocolOp {
-	return m.ProtocolOp
+func (m message) GetProtocolOp() protocolOp {
+	return m.protocolOp
 }
 
-// BIND REQUEST MESSAGE
+// a BindRequest struct
 type BindRequest struct {
-	Message
-	ProtocolOp struct {
+	message
+	protocolOp struct {
 		Version  int
 		Login    []byte
 		Password []byte
 	}
 }
 
-func (b *BindRequest) SetLogin(login []byte) {
-	b.ProtocolOp.Login = login
+func (r *BindRequest) SetLogin(login []byte) {
+	r.protocolOp.Login = login
 }
 
-func (b *BindRequest) GetLogin() []byte {
-	return b.ProtocolOp.Login
+func (r *BindRequest) GetLogin() []byte {
+	return r.protocolOp.Login
 }
 
-func (b *BindRequest) SetVersion(version int) {
-	b.ProtocolOp.Version = version
+func (r *BindRequest) SetVersion(version int) {
+	r.protocolOp.Version = version
 }
 
-func (b *BindRequest) SetPassword(password []byte) {
-	b.ProtocolOp.Password = password
+func (r *BindRequest) SetPassword(password []byte) {
+	r.protocolOp.Password = password
 }
 
-func (b *BindRequest) GetPassword() []byte {
-	return b.ProtocolOp.Password
+func (r *BindRequest) GetPassword() []byte {
+	return r.protocolOp.Password
 }
 
-func (b BindRequest) String() string {
+func (r BindRequest) String() string {
 	var s string = ""
 
 	s = fmt.Sprintf("Login:%s, Password:%s",
-		b.GetLogin(),
-		b.GetPassword())
+		r.GetLogin(),
+		r.GetPassword())
 
 	return s
 }
 
-// UNBIND REQUEST MESSAGE
+// UNBIND REQUEST message
 type UnbindRequest struct {
-	Message
-	ProtocolOp struct {
+	message
+	protocolOp struct {
 	}
 }
 
-// SEARCH REQUEST MESSAGE
+// a SearchRequest message struct
 type SearchRequest struct {
-	Message
-	ProtocolOp struct {
+	message
+	protocolOp struct {
 		BaseDN       []byte
 		Scope        int
 		DerefAliases int
@@ -97,92 +97,92 @@ type SearchRequest struct {
 }
 
 func (s *SearchRequest) GetTypesOnly() bool {
-	return s.ProtocolOp.TypesOnly
+	return s.protocolOp.TypesOnly
 }
 
 func (s *SearchRequest) GetAttributes() [][]byte {
-	return s.ProtocolOp.Attributes
+	return s.protocolOp.Attributes
 }
 func (s *SearchRequest) GetFilter() string {
-	return s.ProtocolOp.Filter
+	return s.protocolOp.Filter
 }
 func (s *SearchRequest) GetBaseDN() []byte {
-	return s.ProtocolOp.BaseDN
+	return s.protocolOp.BaseDN
 }
 func (s *SearchRequest) GetScope() int {
-	return s.ProtocolOp.Scope
+	return s.protocolOp.Scope
 }
 func (s *SearchRequest) GetDerefAliases() int {
-	return s.ProtocolOp.DerefAliases
+	return s.protocolOp.DerefAliases
 }
 func (s *SearchRequest) GetSizeLimit() int {
-	return s.ProtocolOp.SizeLimit
+	return s.protocolOp.SizeLimit
 }
 func (s *SearchRequest) GetTimeLimit() int {
-	return s.ProtocolOp.TimeLimit
+	return s.protocolOp.TimeLimit
 }
 
 func (r SearchRequest) String() string {
 	var s string = ""
 
 	s = fmt.Sprintf("BaseDn:%s\nScope:%d\nDerefAliases:%d\nSizeLimit:%d\nTimeLimit:%d\nTypesOnly:%t\nFilter:%s\n",
-		r.ProtocolOp.BaseDN,
-		r.ProtocolOp.Scope,
-		r.ProtocolOp.DerefAliases,
-		r.ProtocolOp.SizeLimit,
-		r.ProtocolOp.TimeLimit,
-		r.ProtocolOp.TypesOnly,
-		r.ProtocolOp.Filter)
+		r.protocolOp.BaseDN,
+		r.protocolOp.Scope,
+		r.protocolOp.DerefAliases,
+		r.protocolOp.SizeLimit,
+		r.protocolOp.TimeLimit,
+		r.protocolOp.TypesOnly,
+		r.protocolOp.Filter)
 
-	for i := range r.ProtocolOp.Attributes {
-		s = fmt.Sprintf("%sAttribute:%s\n", s, r.ProtocolOp.Attributes[i])
+	for i := range r.protocolOp.Attributes {
+		s = fmt.Sprintf("%sAttribute:%s\n", s, r.protocolOp.Attributes[i])
 	}
 
 	return s
 }
 
 // REPONSES
-type LDAPResponse interface {
+type response interface {
 	encodeToAsn1() []byte
 }
-type LDAPResult struct {
+type ldapResult struct {
 	ResultCode        int
 	MatchedDN         string
 	DiagnosticMessage string
 	referral          interface{}
 }
 
-func (l LDAPResult) encodeToAsn1() []byte {
-	return NewMessagePacket(l).Bytes()
+func (l ldapResult) encodeToAsn1() []byte {
+	return newMessagePacket(l).Bytes()
 }
 
 // BindResponse
 type BindResponse struct {
-	LDAPResult
-	Request         *BindRequest
+	ldapResult
+	request         *BindRequest
 	serverSaslCreds string
 }
 
-func (b *BindResponse) Send() {
-	if b.Request.out != nil {
-		b.Request.out <- b
-		b.Request.wroteMessage += 1
+func (r *BindResponse) Send() {
+	if r.request.out != nil {
+		r.request.out <- r
+		r.request.wroteMessage += 1
 	}
 }
 
-func (sr *SearchResponse) Send() {
-	if sr.Request.out != nil {
-		sr.Request.out <- sr
-		sr.Request.wroteMessage += 1
+func (r *SearchResponse) Send() {
+	if r.request.out != nil {
+		r.request.out <- r
+		r.request.wroteMessage += 1
 	}
 }
 
 func (sr SearchResponse) encodeToAsn1() []byte {
-	return NewMessagePacket(sr).Bytes()
+	return newMessagePacket(sr).Bytes()
 }
 
 func (b BindResponse) encodeToAsn1() []byte {
-	return NewMessagePacket(b).Bytes()
+	return newMessagePacket(b).Bytes()
 }
 
 func (r BindResponse) String() string {
@@ -190,27 +190,27 @@ func (r BindResponse) String() string {
 }
 
 type SearchResponse struct {
-	LDAPResult
-	Request   *SearchRequest
-	Referrals []string
+	ldapResult
+	request   *SearchRequest
+	referrals []string
 	//Controls []Control
-	chan_out chan LDAPResponse
+	chan_out chan response
 }
 
-func (s *SearchResponse) SendEntry(entry *SearchResultEntry) {
-	entry.request = s.Request
-	if s.Request.out != nil {
-		s.Request.out <- *entry //NOTE : Why do i need to * a *SearchResultEntry ?
-		s.Request.searchResultEntrySent += 1
-		s.Request.wroteMessage += 1
+func (r *SearchResponse) SendEntry(entry *SearchResultEntry) {
+	entry.request = r.request
+	if r.request.out != nil {
+		r.request.out <- *entry //NOTE : Why do i need to * a *SearchResultEntry ?
+		r.request.searchResultEntrySent += 1
+		r.request.wroteMessage += 1
 	}
 }
 
-func (s *SearchResponse) SendResultDone(ldapCode int, message string) {
-	s.ResultCode = ldapCode
-	s.DiagnosticMessage = message
-	s.Send()
-	s.Request.searchResultDoneSent = true
+func (r *SearchResponse) SendResultDone(ldapCode int, message string) {
+	r.ResultCode = ldapCode
+	r.DiagnosticMessage = message
+	r.Send()
+	r.request.searchResultDoneSent = true
 }
 
 func (r SearchResponse) String() string {
@@ -219,24 +219,24 @@ func (r SearchResponse) String() string {
 
 type SearchResultEntry struct {
 	request    *SearchRequest
-	DN         string
-	Attributes []*EntryAttribute
+	dN         string
+	attributes []*entryAttribute
 }
 
 func (e *SearchResultEntry) SetDn(dn string) {
-	e.DN = dn
+	e.dN = dn
 }
 
 func (e *SearchResultEntry) AddAttribute(name string, values ...string) {
-	var ea = &EntryAttribute{Name: name, Values: values}
-	e.Attributes = append(e.Attributes, ea)
+	var ea = &entryAttribute{Name: name, Values: values}
+	e.attributes = append(e.attributes, ea)
 }
 
-func (s SearchResultEntry) encodeToAsn1() []byte {
-	return NewMessagePacket(s).Bytes()
+func (e SearchResultEntry) encodeToAsn1() []byte {
+	return newMessagePacket(e).Bytes()
 }
 
-type EntryAttribute struct {
+type entryAttribute struct {
 	Name   string
 	Values []string
 }

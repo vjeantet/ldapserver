@@ -5,7 +5,7 @@ import (
 	"errors"
 	"log"
 
-	"github.com/vjeantet/asn1-ber"
+	ber "github.com/vjeantet/asn1-ber"
 )
 
 type messagePacket struct {
@@ -20,19 +20,19 @@ func (msg *messagePacket) getMessageId() int {
 	return int(msg.Packet.Children[0].Value.(uint64))
 }
 
-func (msg *messagePacket) getRequestMessage() (LDAPRequest, error) {
-	var mm Message
-	mm.MessageId = int(msg.Packet.Children[0].Value.(uint64))
+func (msg *messagePacket) getRequestMessage() (request, error) {
+	var mm message
+	mm.messageId = int(msg.Packet.Children[0].Value.(uint64))
 
 	if msg.getOperation() == ApplicationUnbindRequest {
 		var ur UnbindRequest
-		ur.Message = mm
+		ur.message = mm
 		return ur, nil
 	}
 
 	if msg.getOperation() == ApplicationBindRequest {
 		var br BindRequest
-		br.Message = mm
+		br.message = mm
 		br.SetLogin(msg.Packet.Children[1].Children[1].Data.Bytes())
 		br.SetPassword(msg.Packet.Children[1].Children[2].Data.Bytes())
 		br.SetVersion(int(msg.Packet.Children[1].Children[0].Value.(uint64)))
@@ -41,22 +41,22 @@ func (msg *messagePacket) getRequestMessage() (LDAPRequest, error) {
 
 	if msg.getOperation() == ApplicationSearchRequest {
 		var sr SearchRequest
-		sr.Message = mm
-		sr.ProtocolOp.BaseDN = msg.Packet.Children[1].Children[0].Data.Bytes()
-		sr.ProtocolOp.Scope = int(msg.Packet.Children[1].Children[1].Value.(uint64))
-		sr.ProtocolOp.DerefAliases = int(msg.Packet.Children[1].Children[2].Value.(uint64))
-		sr.ProtocolOp.SizeLimit = int(msg.Packet.Children[1].Children[3].Value.(uint64))
-		sr.ProtocolOp.TimeLimit = int(msg.Packet.Children[1].Children[4].Value.(uint64))
-		sr.ProtocolOp.TypesOnly = msg.Packet.Children[1].Children[5].Value.(bool)
+		sr.message = mm
+		sr.protocolOp.BaseDN = msg.Packet.Children[1].Children[0].Data.Bytes()
+		sr.protocolOp.Scope = int(msg.Packet.Children[1].Children[1].Value.(uint64))
+		sr.protocolOp.DerefAliases = int(msg.Packet.Children[1].Children[2].Value.(uint64))
+		sr.protocolOp.SizeLimit = int(msg.Packet.Children[1].Children[3].Value.(uint64))
+		sr.protocolOp.TimeLimit = int(msg.Packet.Children[1].Children[4].Value.(uint64))
+		sr.protocolOp.TypesOnly = msg.Packet.Children[1].Children[5].Value.(bool)
 
 		var ldaperr error
-		sr.ProtocolOp.Filter, ldaperr = decompileFilter(msg.Packet.Children[1].Children[6])
+		sr.protocolOp.Filter, ldaperr = decompileFilter(msg.Packet.Children[1].Children[6])
 		if ldaperr != nil {
 			log.Printf("Error Decompiling SearchRequestFilter %s", ldaperr)
 		}
 
 		for i := range msg.Packet.Children[1].Children[7].Children {
-			sr.ProtocolOp.Attributes = append(sr.ProtocolOp.Attributes, msg.Packet.Children[1].Children[7].Children[i].Data.Bytes())
+			sr.protocolOp.Attributes = append(sr.protocolOp.Attributes, msg.Packet.Children[1].Children[7].Children[i].Data.Bytes())
 		}
 
 		return sr, nil
@@ -149,12 +149,12 @@ func readMessagePacket(br *bufio.Reader) (*messagePacket, error) {
 	return message_packet, err
 }
 
-func NewMessagePacket(lr LDAPResponse) *ber.Packet {
+func newMessagePacket(lr response) *ber.Packet {
 	switch v := lr.(type) {
 	case BindResponse:
 		var b = lr.(BindResponse)
 		packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
-		packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(b.Request.GetMessageId()), "MessageID"))
+		packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(b.request.GetMessageId()), "MessageID"))
 		bindResponse := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationBindResponse, nil, "Bind Response")
 		bindResponse.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagEnumerated, uint64(b.ResultCode), "ResultCode"))
 		bindResponse.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, b.MatchedDN, "MatchedDN"))
@@ -165,7 +165,7 @@ func NewMessagePacket(lr LDAPResponse) *ber.Packet {
 	case SearchResponse:
 		var res = lr.(SearchResponse)
 		packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
-		packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(res.Request.GetMessageId()), "MessageID"))
+		packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(res.request.GetMessageId()), "MessageID"))
 		searchResultDone := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationSearchResultDone, nil, "Search done")
 		searchResultDone.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagEnumerated, uint64(res.ResultCode), "ResultCode"))
 		searchResultDone.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, res.MatchedDN, "MatchedDN"))
@@ -178,14 +178,14 @@ func NewMessagePacket(lr LDAPResponse) *ber.Packet {
 		packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
 		packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(s.request.GetMessageId()), "MessageID"))
 		searchResponse := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationSearchResultEntry, nil, "SearchResultEntry")
-		searchResponse.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, s.DN, "LDAPDN"))
+		searchResponse.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, s.dN, "LDAPDN"))
 		attributes_list := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Attributes List")
-		for j := range s.Attributes {
-			attributes := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Attributes")
-			attributes.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, s.Attributes[j].Name, "type"))
+		for j := range s.attributes {
+			attributes := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "attributes")
+			attributes.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, s.attributes[j].Name, "type"))
 			values := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSet, nil, "values")
-			for k := range s.Attributes[j].Values {
-				values.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, s.Attributes[j].Values[k], "val"))
+			for k := range s.attributes[j].Values {
+				values.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, s.attributes[j].Values[k], "val"))
 			}
 			attributes.AppendChild(values)
 			attributes_list.AppendChild(attributes)

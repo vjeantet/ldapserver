@@ -1,13 +1,15 @@
 package ldapserver
 
-func BindError(r BindResponse, ldapCode int, error string) {
+// write a LDAP error to the client as the BindResponse
+func BindError(r BindResponse, ldapCode int, errorMsg string) {
 	r.ResultCode = ldapCode
-	r.DiagnosticMessage = error
+	r.DiagnosticMessage = errorMsg
 	r.Send()
 }
 
-func SearchError(r SearchResponse, ldapCode int, error string) {
+// write a LDAP error to the client as the SearchResponse
+func SearchError(r SearchResponse, ldapCode int, errorMsg string) {
 	r.ResultCode = ldapCode
-	r.DiagnosticMessage = error
+	r.DiagnosticMessage = errorMsg
 	r.Send()
 }
