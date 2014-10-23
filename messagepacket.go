@@ -73,34 +73,34 @@ func decompileFilter(packet *ber.Packet) (ret string, err error) {
 	}()
 	ret = "("
 	err = nil
-	child_str := ""
+	childStr := ""
 
 	switch packet.Tag {
 	case FilterAnd:
 		ret += "&"
 		for _, child := range packet.Children {
-			child_str, err = decompileFilter(child)
+			childStr, err = decompileFilter(child)
 			if err != nil {
 				return
 			}
-			ret += child_str
+			ret += childStr
 		}
 	case FilterOr:
 		ret += "|"
 		for _, child := range packet.Children {
-			child_str, err = decompileFilter(child)
+			childStr, err = decompileFilter(child)
 			if err != nil {
 				return
 			}
-			ret += child_str
+			ret += childStr
 		}
 	case FilterNot:
 		ret += "!"
-		child_str, err = decompileFilter(packet.Children[0])
+		childStr, err = decompileFilter(packet.Children[0])
 		if err != nil {
 			return
 		}
-		ret += child_str
+		ret += childStr
 
 	case FilterSubstrings:
 		ret += ber.DecodeString(packet.Children[0].Data.Bytes())
@@ -145,8 +145,8 @@ func decompileFilter(packet *ber.Packet) (ret string, err error) {
 func readMessagePacket(br *bufio.Reader) (*messagePacket, error) {
 	p, err := ber.ReadPacket(br)
 	//ber.PrintPacket(p)
-	message_packet := &messagePacket{Packet: p}
-	return message_packet, err
+	messagePacket := &messagePacket{Packet: p}
+	return messagePacket, err
 }
 
 func newMessagePacket(lr response) *ber.Packet {

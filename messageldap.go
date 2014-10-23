@@ -199,7 +199,6 @@ type SearchResponse struct {
 	request   *SearchRequest
 	referrals []string
 	//Controls []Control
-	chan_out chan response
 }
 
 func (r *SearchResponse) SendEntry(entry *SearchResultEntry) {
