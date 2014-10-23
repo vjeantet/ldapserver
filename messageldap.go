@@ -18,6 +18,7 @@ type message struct {
 	protocolOp   protocolOp
 	Controls     []interface{}
 	out          chan response
+	Done         chan bool
 }
 
 func (m message) GetMessageId() int {
@@ -29,6 +30,10 @@ func (m message) String() string {
 }
 func (m message) GetProtocolOp() protocolOp {
 	return m.protocolOp
+}
+
+func (m *message) GetDoneSignal() chan bool {
+	return m.Done
 }
 
 // a BindRequest struct
@@ -165,15 +170,15 @@ type BindResponse struct {
 
 func (r *BindResponse) Send() {
 	if r.request.out != nil {
-		r.request.out <- r
-		r.request.wroteMessage += 1
+		r.request.out <- *r
+		r.request.wroteMessage++
 	}
 }
 
 func (r *SearchResponse) Send() {
 	if r.request.out != nil {
-		r.request.out <- r
-		r.request.wroteMessage += 1
+		r.request.out <- *r
+		r.request.wroteMessage++
 	}
 }
 

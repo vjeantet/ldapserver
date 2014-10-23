@@ -5,14 +5,13 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
-	"time"
 
 	ldap "github.com/vjeantet/ldapserver"
 )
 
 func main() {
 	//Create a new LDAP Server
-	server := ldap.Server{Addr: ":1389", ReadTimeout: time.Second * 6}
+	server := ldap.Server{Addr: ":1389"}
 
 	//Set Search request Handler
 	server.SetSearchHandler(handleSearch)
@@ -29,7 +28,8 @@ func main() {
 	// Handle SIGINT and SIGTERM.
 	ch := make(chan os.Signal)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
-	log.Println(<-ch)
+	<-ch
+	close(ch)
 
 	server.Stop()
 
@@ -42,12 +42,16 @@ func handlerUnbind(r *ldap.UnbindRequest) {
 }
 
 func handlerBind(w ldap.BindResponse, r *ldap.BindRequest) {
-	if string(r.GetLogin()) != "myLogin" {
-		log.Print("Bind failed")
-		ldap.BindError(w, ldap.LDAPResultInvalidCredentials, "login / mot de passe invalide")
+	if string(r.GetLogin()) == "myLogin" {
+		w.ResultCode = ldap.LDAPResultSuccess
+		w.Send()
 		return
 	}
-	return
+
+	log.Print("Bind failed")
+	w.ResultCode = ldap.LDAPResultInvalidCredentials
+	w.DiagnosticMessage = "login / mot de passe invalide"
+	w.Send()
 }
 
 func handleSearch(w ldap.SearchResponse, r *ldap.SearchRequest) {
@@ -55,21 +59,31 @@ func handleSearch(w ldap.SearchResponse, r *ldap.SearchRequest) {
 	// log.Printf("Request Filter=%s", r.GetFilter())
 	// log.Printf("Request Attributes=%s", r.GetAttributes())
 
-	e := new(ldap.SearchResultEntry)
-	e.SetDn("cn=Valere JEANTET, " + string(r.GetBaseDN()))
-	e.AddAttribute("mail", "valere.jeantet@gmail.com")
-	e.AddAttribute("company", "SODADI")
-	e.AddAttribute("department", "DSI/QSM")
-	e.AddAttribute("l", "Ferrieres en brie")
-	e.AddAttribute("mobile", "0612324567")
-	e.AddAttribute("telephoneNumber", "0612324567")
-	e.AddAttribute("cn", "Valère JEANTET")
-	w.SendEntry(e)
+	for {
+		select {
+		case <-r.GetDoneSignal():
+			log.Print("Leaving handleSearch...")
+			return
+		default:
+		}
 
-	e = new(ldap.SearchResultEntry)
-	e.SetDn("cn=Claire Thomas, " + string(r.GetBaseDN()))
-	e.AddAttribute("mail", "claire.thomas@gmail.com")
-	e.AddAttribute("cn", "Claire THOMAS")
-	w.SendEntry(e)
+		e := new(ldap.SearchResultEntry)
+		e.SetDn("cn=Valere JEANTET, " + string(r.GetBaseDN()))
+		e.AddAttribute("mail", "valere.jeantet@gmail.com")
+		e.AddAttribute("company", "SODADI")
+		e.AddAttribute("department", "DSI/QSM")
+		e.AddAttribute("l", "Ferrieres en brie")
+		e.AddAttribute("mobile", "0612324567")
+		e.AddAttribute("telephoneNumber", "0612324567")
+		e.AddAttribute("cn", "Valère JEANTET")
+		w.SendEntry(e)
 
+		e = new(ldap.SearchResultEntry)
+		e.SetDn("cn=Claire Thomas, " + string(r.GetBaseDN()))
+		e.AddAttribute("mail", "claire.thomas@gmail.com")
+		e.AddAttribute("cn", "Claire THOMAS")
+		w.SendEntry(e)
+	}
+	w.ResultCode = ldap.LDAPResultSuccess
+	w.Send()
 }

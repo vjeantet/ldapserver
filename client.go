@@ -37,7 +37,7 @@ func (c *client) serve() {
 	// Create the ldap response queue to be writted to client (buffered to 20)
 	// buffered to 20 means that If client is slow to handler responses, Server
 	// Handlers will stop to send more respones
-	c.chan_out = make(chan response, 20)
+	c.chan_out = make(chan response)
 
 	go func() {
 		defer log.Println("reponses pipeline stopped")
@@ -50,23 +50,23 @@ func (c *client) serve() {
 
 	for {
 
-		if c.srv.ReadTimeout != 0 {
-			c.rwc.SetReadDeadline(time.Now().Add(c.srv.ReadTimeout))
-		}
-
-		//Read the ASN1/BER binary message
-		message_packet, err := readMessagePacket(c.br)
-		if err != nil {
-			log.Printf("Erreur readMessagePacket: %s", err)
-			return
-		}
-
 		select {
 		case <-c.srv.ch:
 			log.Print("Stopping client")
 			//TODO: return a UnwillingToPerform to the message_packet request
 			return
 		default:
+		}
+
+		if c.srv.ReadTimeout != 0 {
+			c.rwc.SetReadDeadline(time.Now().Add(c.srv.ReadTimeout))
+		}
+		//Read the ASN1/BER binary message
+		message_packet, err := readMessagePacket(c.br)
+		if err != nil {
+			log.Printf("Erreur readMessagePacket: %s", err)
+			c.srv.ch <- true
+			return
 		}
 
 		//Convert binaryMessage to a ldap RequestMessage
@@ -123,25 +123,16 @@ func (c *client) ProcessRequestMessage(request request) {
 	case BindRequest:
 		var req = request.(BindRequest)
 		req.out = c.chan_out
+		req.Done = c.srv.ch
 		var res = BindResponse{request: &req}
 		c.srv.BindHandler(res, &req)
-
-		if req.wroteMessage == 0 {
-			res.ResultCode = LDAPResultSuccess
-			c.chan_out <- res
-			req.wroteMessage += 1
-		}
 
 	case SearchRequest:
 		var req SearchRequest = request.(SearchRequest)
 		req.out = c.chan_out
+		req.Done = c.srv.ch
 		var r = SearchResponse{request: &req}
 		c.srv.SearchHandler(r, &req)
-		if req.searchResultDoneSent == false {
-			r.ResultCode = LDAPResultSuccess
-			c.chan_out <- r
-			req.wroteMessage += 1
-		}
 
 	case UnbindRequest:
 		log.Fatal("Unbind Request sould not be handled here")
