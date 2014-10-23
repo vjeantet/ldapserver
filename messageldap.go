@@ -7,28 +7,28 @@ type protocolOp interface {
 }
 
 type request interface {
-	GetMessageId() int
+	getMessageID() int
 	String() string
-	GetProtocolOp() protocolOp
+	getProtocolOp() protocolOp
 }
 
 type message struct {
 	wroteMessage int
-	messageId    int
+	messageID    int
 	protocolOp   protocolOp
 	Controls     []interface{}
 	out          chan response
 	Done         chan bool
 }
 
-func (m message) GetMessageId() int {
-	return m.messageId
+func (m message) getMessageID() int {
+	return m.messageID
 }
 
 func (m message) String() string {
-	return fmt.Sprintf("MessageId=%d, %s", m.messageId, m.protocolOp.String())
+	return fmt.Sprintf("MessageId=%d, %s", m.messageID, m.protocolOp.String())
 }
-func (m message) GetProtocolOp() protocolOp {
+func (m message) getProtocolOp() protocolOp {
 	return m.protocolOp
 }
 
@@ -67,7 +67,7 @@ func (r *BindRequest) GetPassword() []byte {
 }
 
 func (r BindRequest) String() string {
-	var s string = ""
+	var s string
 
 	s = fmt.Sprintf("Login:%s, Password:%s",
 		r.GetLogin(),
@@ -127,23 +127,23 @@ func (s *SearchRequest) GetTimeLimit() int {
 	return s.protocolOp.TimeLimit
 }
 
-func (r SearchRequest) String() string {
-	var s string = ""
+func (s SearchRequest) String() string {
+	var txt string
 
-	s = fmt.Sprintf("BaseDn:%s\nScope:%d\nDerefAliases:%d\nSizeLimit:%d\nTimeLimit:%d\nTypesOnly:%t\nFilter:%s\n",
-		r.protocolOp.BaseDN,
-		r.protocolOp.Scope,
-		r.protocolOp.DerefAliases,
-		r.protocolOp.SizeLimit,
-		r.protocolOp.TimeLimit,
-		r.protocolOp.TypesOnly,
-		r.protocolOp.Filter)
+	txt = fmt.Sprintf("BaseDn:%s\nScope:%d\nDerefAliases:%d\nSizeLimit:%d\nTimeLimit:%d\nTypesOnly:%t\nFilter:%s\n",
+		s.protocolOp.BaseDN,
+		s.protocolOp.Scope,
+		s.protocolOp.DerefAliases,
+		s.protocolOp.SizeLimit,
+		s.protocolOp.TimeLimit,
+		s.protocolOp.TypesOnly,
+		s.protocolOp.Filter)
 
-	for i := range r.protocolOp.Attributes {
-		s = fmt.Sprintf("%sAttribute:%s\n", s, r.protocolOp.Attributes[i])
+	for i := range s.protocolOp.Attributes {
+		txt = fmt.Sprintf("%sAttribute:%s\n", txt, s.protocolOp.Attributes[i])
 	}
 
-	return s
+	return txt
 }
 
 // REPONSES

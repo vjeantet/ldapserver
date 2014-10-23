@@ -10,14 +10,14 @@ import (
 )
 
 type client struct {
-	Numero   int
-	srv      *Server
-	rwc      net.Conn
-	br       *bufio.Reader
-	bw       *bufio.Writer
-	chan_out chan response
-	wg       sync.WaitGroup
-	closing  bool
+	Numero  int
+	srv     *Server
+	rwc     net.Conn
+	br      *bufio.Reader
+	bw      *bufio.Writer
+	chanOut chan response
+	wg      sync.WaitGroup
+	closing bool
 }
 
 func (c *client) Addr() net.Addr {
@@ -37,12 +37,12 @@ func (c *client) serve() {
 	// Create the ldap response queue to be writted to client (buffered to 20)
 	// buffered to 20 means that If client is slow to handler responses, Server
 	// Handlers will stop to send more respones
-	c.chan_out = make(chan response)
+	c.chanOut = make(chan response)
 
 	go func() {
 		defer log.Println("reponses pipeline stopped")
 
-		for msg := range c.chan_out {
+		for msg := range c.chanOut {
 			c.writeLdapResult(msg)
 		}
 
@@ -53,7 +53,7 @@ func (c *client) serve() {
 		select {
 		case <-c.srv.ch:
 			log.Print("Stopping client")
-			//TODO: return a UnwillingToPerform to the message_packet request
+			//TODO: return a UnwillingToPerform to the messagePacket request
 			return
 		default:
 		}
@@ -62,7 +62,7 @@ func (c *client) serve() {
 			c.rwc.SetReadDeadline(time.Now().Add(c.srv.ReadTimeout))
 		}
 		//Read the ASN1/BER binary message
-		message_packet, err := readMessagePacket(c.br)
+		messagePacket, err := readMessagePacket(c.br)
 		if err != nil {
 			log.Printf("Erreur readMessagePacket: %s", err)
 			c.srv.ch <- true
@@ -71,7 +71,7 @@ func (c *client) serve() {
 
 		//Convert binaryMessage to a ldap RequestMessage
 		var request request
-		request, err = message_packet.getRequestMessage()
+		request, err = messagePacket.getRequestMessage()
 
 		if err != nil {
 			log.Printf("Error : %s", err.Error())
@@ -82,7 +82,7 @@ func (c *client) serve() {
 		// NOTE test
 		// And WHILE the limit is reached THEN send a BusyLdapMessage
 
-		log.Printf("<<< %d - %s - hex=%x", c.Numero, reflect.TypeOf(request).Name(), message_packet.Packet.Bytes())
+		log.Printf("<<< %d - %s - hex=%x", c.Numero, reflect.TypeOf(request).Name(), messagePacket.Packet.Bytes())
 
 		if _, ok := request.(UnbindRequest); ok {
 			return
@@ -99,7 +99,7 @@ func (c *client) close() {
 	c.closing = true
 	log.Print("waiting the end of current client's requests")
 	c.wg.Wait()
-	close(c.chan_out)
+	close(c.chanOut)
 	log.Print("client's requests ended")
 
 	c.rwc.Close()
@@ -122,14 +122,14 @@ func (c *client) ProcessRequestMessage(request request) {
 	switch v := request.(type) {
 	case BindRequest:
 		var req = request.(BindRequest)
-		req.out = c.chan_out
+		req.out = c.chanOut
 		req.Done = c.srv.ch
 		var res = BindResponse{request: &req}
 		c.srv.BindHandler(res, &req)
 
 	case SearchRequest:
-		var req SearchRequest = request.(SearchRequest)
-		req.out = c.chan_out
+		var req = request.(SearchRequest)
+		req.out = c.chanOut
 		req.Done = c.srv.ch
 		var r = SearchResponse{request: &req}
 		c.srv.SearchHandler(r, &req)
