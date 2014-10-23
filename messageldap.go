@@ -182,12 +182,12 @@ func (r *SearchResponse) Send() {
 	}
 }
 
-func (sr SearchResponse) encodeToAsn1() []byte {
-	return newMessagePacket(sr).Bytes()
+func (r SearchResponse) encodeToAsn1() []byte {
+	return newMessagePacket(r).Bytes()
 }
 
-func (b BindResponse) encodeToAsn1() []byte {
-	return newMessagePacket(b).Bytes()
+func (r BindResponse) encodeToAsn1() []byte {
+	return newMessagePacket(r).Bytes()
 }
 
 func (r BindResponse) String() string {
@@ -205,8 +205,8 @@ func (r *SearchResponse) SendEntry(entry *SearchResultEntry) {
 	entry.request = r.request
 	if r.request.out != nil {
 		r.request.out <- *entry //NOTE : Why do i need to * a *SearchResultEntry ?
-		r.request.searchResultEntrySent += 1
-		r.request.wroteMessage += 1
+		r.request.searchResultEntrySent++
+		r.request.wroteMessage++
 	}
 }
 
