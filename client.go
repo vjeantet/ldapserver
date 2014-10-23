@@ -40,7 +40,7 @@ func (c *client) serve() {
 	c.chan_out = make(chan response, 20)
 
 	go func() {
-		defer log.Println("output goroutine. stopped")
+		defer log.Println("reponses pipeline stopped")
 
 		for msg := range c.chan_out {
 			c.writeLdapResult(msg)
@@ -89,8 +89,6 @@ func (c *client) serve() {
 		}
 
 		c.wg.Add(1)
-		log.Print("wg_c +1")
-		log.Printf("start one mode go %s", reflect.TypeOf(request).Name())
 		go c.ProcessRequestMessage(request)
 
 	}
@@ -99,10 +97,10 @@ func (c *client) serve() {
 
 func (c *client) close() {
 	c.closing = true
-	log.Print("waiting for wg_c...")
+	log.Print("waiting the end of current client's requests")
 	c.wg.Wait()
 	close(c.chan_out)
-	log.Print("waiting for wg_c done !")
+	log.Print("client's requests ended")
 
 	c.rwc.Close()
 
@@ -120,7 +118,6 @@ func (c *client) writeLdapResult(lr response) {
 
 func (c *client) ProcessRequestMessage(request request) {
 	defer c.wg.Done()
-	defer log.Print("wg_c -1")
 
 	switch v := request.(type) {
 	case BindRequest:

@@ -66,11 +66,10 @@ func (s *Server) ListenAndServe() error {
 }
 
 func (s *Server) Stop() {
-	log.Print("!!!!!!!! Closing Server !!!!!!!!")
 	close(s.ch)
-	log.Print("waiting for server server's goroutines to end...")
+	log.Print("waiting for client connections to be closed...")
 	s.wg.Wait()
-	log.Print("server's goroutines ended !")
+	log.Print("all client connections closed")
 }
 
 // Handle requests messages on the ln listener
