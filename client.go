@@ -125,14 +125,26 @@ func (c *client) ProcessRequestMessage(request request) {
 		req.out = c.chanOut
 		req.Done = c.srv.ch
 		var res = BindResponse{request: &req}
-		c.srv.BindHandler(res, &req)
+		if h := c.srv.BindHandler; h != nil {
+			h(res, &req)
+		} else {
+			res.ResultCode = LDAPResultUnwillingToPerform
+			res.DiagnosticMessage = "not implemented"
+			res.Send()
+		}
 
 	case SearchRequest:
 		var req = request.(SearchRequest)
 		req.out = c.chanOut
 		req.Done = c.srv.ch
-		var r = SearchResponse{request: &req}
-		c.srv.SearchHandler(r, &req)
+		var res = SearchResponse{request: &req}
+		if h := c.srv.SearchHandler; h != nil {
+			h(res, &req)
+		} else {
+			res.ResultCode = LDAPResultUnwillingToPerform
+			res.DiagnosticMessage = "not implemented"
+			res.Send()
+		}
 
 	case UnbindRequest:
 		log.Fatal("Unbind Request sould not be handled here")

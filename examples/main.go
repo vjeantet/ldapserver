@@ -32,7 +32,6 @@ func main() {
 	close(ch)
 
 	server.Stop()
-
 }
 
 // A successfull unbind request should not send any response, but close the
@@ -69,7 +68,7 @@ func handleSearch(w ldap.SearchResponse, r *ldap.SearchRequest) {
 		}
 
 		e := new(ldap.SearchResultEntry)
-		e.SetDn("cn=Valere JEANTET, " + string(r.GetBaseDN()))
+		e.SetDn("cn=Valere JEANTET, " + string(r.GetBaseObject()))
 		e.AddAttribute("mail", "valere.jeantet@gmail.com")
 		e.AddAttribute("company", "SODADI")
 		e.AddAttribute("department", "DSI/QSM")
@@ -80,7 +79,7 @@ func handleSearch(w ldap.SearchResponse, r *ldap.SearchRequest) {
 		w.SendEntry(e)
 
 		e = new(ldap.SearchResultEntry)
-		e.SetDn("cn=Claire Thomas, " + string(r.GetBaseDN()))
+		e.SetDn("cn=Claire Thomas, " + string(r.GetBaseObject()))
 		e.AddAttribute("mail", "claire.thomas@gmail.com")
 		e.AddAttribute("cn", "Claire THOMAS")
 		w.SendEntry(e)
