@@ -60,8 +60,9 @@ func handleSearch(w ldap.SearchResponse, r *ldap.SearchRequest) {
 	// log.Printf("Request Attributes=%s", r.GetAttributes())
 
 	for {
+		// Handle Stop Signal (server stop / client disconnected / Abandoned request....)
 		select {
-		case <-r.GetDoneSignal():
+		case <-r.GetDoneChannel():
 			log.Print("Leaving handleSearch...")
 			return
 		default:

@@ -32,7 +32,9 @@ func (m message) getProtocolOp() protocolOp {
 	return m.protocolOp
 }
 
-func (m *message) GetDoneSignal() chan bool {
+//GetDoneChannel return a channel, which indicate the the request should be
+//aborted quickly, because the client abandonned the request, the server qui quitting, ...
+func (m *message) GetDoneChannel() chan bool {
 	return m.Done
 }
 
