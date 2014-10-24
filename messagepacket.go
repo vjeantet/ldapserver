@@ -42,7 +42,7 @@ func (msg *messagePacket) getRequestMessage() (request, error) {
 	if msg.getOperation() == ApplicationSearchRequest {
 		var sr SearchRequest
 		sr.message = mm
-		sr.protocolOp.BaseDN = msg.Packet.Children[1].Children[0].Data.Bytes()
+		sr.protocolOp.BaseObject = msg.Packet.Children[1].Children[0].Data.Bytes()
 		sr.protocolOp.Scope = int(msg.Packet.Children[1].Children[1].Value.(uint64))
 		sr.protocolOp.DerefAliases = int(msg.Packet.Children[1].Children[2].Value.(uint64))
 		sr.protocolOp.SizeLimit = int(msg.Packet.Children[1].Children[3].Value.(uint64))

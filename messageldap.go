@@ -78,18 +78,22 @@ func (r BindRequest) String() string {
 	return s
 }
 
-// UNBIND REQUEST message
+// UnbindRequest's function is to terminate an LDAP session.
+// The Unbind operation is not the antithesis of the Bind operation as
+// the name implies.  The naming of these operations are historical.
+// The Unbind operation should be thought of as the "quit" operation.
 type UnbindRequest struct {
 	message
 	protocolOp struct {
 	}
 }
 
-// a SearchRequest message struct
+// SearchRequest is a definition of the Search Operation
+// baseObject - The name of the base object entry (or possibly the root) relative to which the Search is to be performed
 type SearchRequest struct {
 	message
 	protocolOp struct {
-		BaseDN       []byte
+		BaseObject   []byte
 		Scope        int
 		DerefAliases int
 		SizeLimit    int
@@ -113,8 +117,8 @@ func (s *SearchRequest) GetAttributes() [][]byte {
 func (s *SearchRequest) GetFilter() string {
 	return s.protocolOp.Filter
 }
-func (s *SearchRequest) GetBaseDN() []byte {
-	return s.protocolOp.BaseDN
+func (s *SearchRequest) GetBaseObject() []byte {
+	return s.protocolOp.BaseObject
 }
 func (s *SearchRequest) GetScope() int {
 	return s.protocolOp.Scope
@@ -132,8 +136,8 @@ func (s *SearchRequest) GetTimeLimit() int {
 func (s SearchRequest) String() string {
 	var txt string
 
-	txt = fmt.Sprintf("BaseDn:%s\nScope:%d\nDerefAliases:%d\nSizeLimit:%d\nTimeLimit:%d\nTypesOnly:%t\nFilter:%s\n",
-		s.protocolOp.BaseDN,
+	txt = fmt.Sprintf("BaseObject:%s\nScope:%d\nDerefAliases:%d\nSizeLimit:%d\nTimeLimit:%d\nTypesOnly:%t\nFilter:%s\n",
+		s.protocolOp.BaseObject,
 		s.protocolOp.Scope,
 		s.protocolOp.DerefAliases,
 		s.protocolOp.SizeLimit,
@@ -148,10 +152,16 @@ func (s SearchRequest) String() string {
 	return txt
 }
 
-// REPONSES
+// response is the interface implemented by each ldap response (BinResponse, SearchResponse, SearchEntryResult,...) struct
 type response interface {
 	encodeToAsn1() []byte
 }
+
+// ldapResult is the construct used in LDAP protocol to return
+// success or failure indications from servers to clients.  To various
+// requests, servers will return responses containing the elements found
+// in LDAPResult to indicate the final status of the protocol operation
+// request.
 type ldapResult struct {
 	ResultCode        int
 	MatchedDN         string
@@ -163,7 +173,8 @@ func (l ldapResult) encodeToAsn1() []byte {
 	return newMessagePacket(l).Bytes()
 }
 
-// BindResponse
+// BindResponse consists simply of an indication from the server of the
+// status of the client's request for authentication
 type BindResponse struct {
 	ldapResult
 	request         *BindRequest
@@ -223,6 +234,7 @@ func (r SearchResponse) String() string {
 	return ""
 }
 
+// SearchResultEntry represents an entry found during the Search
 type SearchResultEntry struct {
 	request    *SearchRequest
 	dN         string
