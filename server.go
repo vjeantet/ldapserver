@@ -34,12 +34,35 @@ func (s *Server) SetBindHandler(fn func(BindResponse, *BindRequest)) {
 	s.BindHandler = fn
 }
 
+// SetUnbindHandler handle Unbind's operations
+// The function of the Unbind operation is to terminate an LDAP session.
+// The Unbind operation is not the antithesis of the Bind operation as
+// the name implies.  The naming of these operations are historical.
+// The Unbind operation should be thought of as the "quit" operation.
+// The client, upon transmission of the UnbindRequest, and the server,
+// upon receipt of the UnbindRequest, are to gracefully terminate the
+// LDAP session.
+// This handler can be only used to get the unbindRequest.
 func (s *Server) SetUnbindHandler(fn func(*UnbindRequest)) {
 	s.UnbindHandler = fn
 }
 
+// SetSearchHandler handle Search's operations used to request a server to return, subject
+// to access controls and other restrictions, a set of entries matching
+// a complex search criterion.  This can be used to read attributes from
+// a single entry, from entries immediately subordinate to a particular
+// entry, or from a whole subtree of entries.
+// Use the SearchResponse to send all SearchResultEntry
+// The fn func should take care of timeLimit and sizeLimit and send the adequats Ldap Response
+//     LDAPResultTimeLimitExceeded, LDAPResultSizeLimitExceeded, ....
+// The fn func should set the result code to send back to the client, if eerything is ok, a resultCode set
+//     to LDAPResultSuccess
+// Listen to *SearchRequest.GetDoneChannel() channel, when a value comes out of this
+//    channel it means that responses may consumed by the client, because of a AbandonRequest,
+//    a Server stop, etc....
 func (s *Server) SetSearchHandler(fn func(SearchResponse, *SearchRequest)) {
 	s.SearchHandler = fn
+
 }
 
 // ListenAndServe listens on the TCP network address s.Addr and then
@@ -65,6 +88,17 @@ func (s *Server) ListenAndServe() error {
 	return s.serve(ln)
 }
 
+// Termination of the LDAP session is initiated by the server sending a
+//    Notice of Disconnection.  In this case, each
+//    protocol peer gracefully terminates the LDAP session by ceasing
+//    exchanges at the LDAP message layer, tearing down any SASL layer,
+//    tearing down any TLS layer, and closing the transport connection.
+//    A protocol peer may determine that the continuation of any
+//    communication would be pernicious, and in this case, it may abruptly
+//    terminate the session by ceasing communication and closing the
+//    transport connection.
+//    In either case, when the LDAP session is terminated.
+// TODO: Send a Disconnection notification
 func (s *Server) Stop() {
 	close(s.ch)
 	log.Print("waiting for client connections to be closed...")

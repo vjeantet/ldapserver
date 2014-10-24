@@ -1,16 +1,24 @@
 package ldapserver
 
+// filter substrings expressions
 const (
 	FilterSubstringsInitial = 0
 	FilterSubstringsAny     = 1
 	FilterSubstringsFinal   = 2
 )
 
+// Filter expressions
 const (
-	messageRequest = iota
-	messageResponse
-	messageFinish
-	fakeRequest
+	FilterAnd             = 0
+	FilterOr              = 1
+	FilterNot             = 2
+	FilterEqualityMatch   = 3
+	FilterSubstrings      = 4
+	FilterGreaterOrEqual  = 5
+	FilterLessOrEqual     = 6
+	FilterPresent         = 7
+	FilterApproxMatch     = 8
+	FilterExtensibleMatch = 9
 )
 
 // LDAP Application Codes
@@ -83,26 +91,4 @@ const (
 	ErrorFilterCompile   = 201
 	ErrorFilterDecompile = 202
 	ErrorDebugging       = 203
-)
-
-const (
-	FilterAnd             = 0
-	FilterOr              = 1
-	FilterNot             = 2
-	FilterEqualityMatch   = 3
-	FilterSubstrings      = 4
-	FilterGreaterOrEqual  = 5
-	FilterLessOrEqual     = 6
-	FilterPresent         = 7
-	FilterApproxMatch     = 8
-	FilterExtensibleMatch = 9
-)
-
-type ldapResultCode int16
-
-const (
-	Success                     ldapResultCode = 0
-	InappropriateAuthentication ldapResultCode = 48
-	InvalidCredentials          ldapResultCode = 49
-	InsufficientAccessRights    ldapResultCode = 59
 )
