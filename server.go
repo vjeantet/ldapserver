@@ -93,6 +93,19 @@ func (s *Server) Stop() {
 // Handle requests messages on the ln listener
 func (s *Server) serve(ln *net.TCPListener) error {
 	defer ln.Close()
+
+	// When no BindHandler is set, use the default one to return OK to all
+	// BinRequest
+	if s.BindHandler == nil {
+		s.BindHandler = handleBindRequest
+	}
+
+	// When no SearchHandler is set, use the default one to return no entries
+	// and a Success response code
+	if s.SearchHandler == nil {
+		s.SearchHandler = handleSearchRequest
+	}
+
 	s.chDone = make(chan bool)
 	i := 0
 	for {
