@@ -34,6 +34,8 @@ func (m message) getProtocolOp() protocolOp {
 	return m.protocolOp
 }
 
+// abort close the Done channel, to notify handler's user function to stop any
+// running process
 func (m message) abort() {
 	close(m.Done)
 }
@@ -170,7 +172,7 @@ type response interface {
 // request.
 type ldapResult struct {
 	ResultCode        int
-	MatchedDN         string
+	MatchedDN         LDAPDN
 	DiagnosticMessage string
 	referral          interface{}
 }
@@ -188,7 +190,7 @@ func (l ldapResult) encodeToAsn1() []byte {
 type ExtendedResponse struct {
 	ldapResult
 	request       *BindRequest
-	responseName  string
+	responseName  LDAPOID
 	responseValue string
 }
 
@@ -200,7 +202,7 @@ type ExtendedResponse struct {
 type ExtendedRequest struct {
 	message
 	protocolOp struct {
-		requestName  string
+		requestName  LDAPOID
 		requestValue string
 	}
 }
@@ -282,6 +284,9 @@ func (e *SearchResultEntry) AddAttribute(name string, values ...string) {
 	e.attributes = append(e.attributes, ea)
 }
 
+func (r ExtendedResponse) encodeToAsn1() []byte {
+	return newMessagePacket(r).Bytes()
+}
 func (e SearchResultEntry) encodeToAsn1() []byte {
 	return newMessagePacket(e).Bytes()
 }

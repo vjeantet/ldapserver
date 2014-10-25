@@ -42,8 +42,6 @@ func (c *client) serve() {
 
 	// for each message in c.chanOut send it to client
 	go func() {
-		defer log.Println("reponses pipeline stopped")
-
 		for msg := range c.chanOut {
 			c.writeLdapResult(msg)
 		}
@@ -55,7 +53,11 @@ func (c *client) serve() {
 		for {
 			select {
 			case <-c.srv.chDone: // server signals shutdown process
-				log.Printf("Stopping client [%d]", c.Numero)
+				var r = &ExtendedResponse{}
+				r.ResultCode = LDAPResultUnwillingToPerform
+				r.DiagnosticMessage = "server is about to stop"
+				r.responseName = NoticeOfDisconnection
+				c.chanOut <- *r
 				c.rwc.SetReadDeadline(time.Now().Add(time.Second))
 				return
 				//TODO: return a UnwillingToPerform to the messagePacket request
@@ -78,7 +80,7 @@ func (c *client) serve() {
 		//Read client input as a ASN1/BER binary message
 		messagePacket, err := readMessagePacket(c.br)
 		if err != nil {
-			log.Printf("Erreur readMessagePacket: %s", err)
+			log.Printf("Error readMessagePacket: %s", err)
 			return
 		}
 
@@ -128,19 +130,19 @@ func (c *client) close() {
 
 	// signals to all currently running request processor to stop
 	for messageID, request := range c.requestList {
-		log.Printf("Client %d Send Quit Signal to request with messageID = %d", c.Numero, messageID)
+		log.Printf("Client [%d] sent abandon signal to request[messageID = %d]", c.Numero, messageID)
 		request.abort()
 	}
 
 	// wait for all request processor to end
-	log.Printf("waiting the end of current (%d) client's requests", c.Numero)
+	//log.Printf("waiting the end of current (%d) client's requests", c.Numero)
 	c.wg.Wait()
 	close(c.chanOut)
-	log.Printf("client's (%d)requests ended", c.Numero)
+	log.Printf("client [%d] request processors ended", c.Numero)
 
 	// close client connection
 	c.rwc.Close()
-	log.Printf("Connection client [%d] closed", c.Numero)
+	log.Printf("client [%d] connection closed", c.Numero)
 
 	// signal to server that client shutdown is ok
 	c.srv.wg.Done()
@@ -149,7 +151,7 @@ func (c *client) close() {
 func (c *client) writeLdapResult(lr response) {
 	//TODO: encodingToAsn1 should not be reponsability of Response, maybe messagepacket
 	data := lr.encodeToAsn1()
-	//log.Printf(">>> %d - %s - hex=%x", c.Numero, reflect.TypeOf(lr).Name(), data)
+	log.Printf(">>> %d - %s - hex=%x", c.Numero, reflect.TypeOf(lr).Name(), data)
 	c.bw.Write(data)
 	c.bw.Flush()
 }
@@ -189,10 +191,10 @@ func (c *client) ProcessRequestMessage(request request) {
 		}
 
 	case UnbindRequest:
-		log.Fatal("Unbind Request sould not be handled here")
+		log.Print("Unbind Request sould not be handled here")
 
 	default:
-		log.Fatalf("unexpected type %T", v)
+		log.Printf("WARNING : unexpected type %v", v)
 	}
 
 }
