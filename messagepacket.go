@@ -62,6 +62,13 @@ func (msg *messagePacket) getRequestMessage() (request, error) {
 		return sr, nil
 	}
 
+	if msg.getOperation() == ApplicationAbandonRequest {
+		var r AbandonRequest
+		r.message = mm
+		r.setIDToAbandon(int(msg.Packet.Children[1].Value.(uint64)))
+		return r, nil
+	}
+
 	return mm, errors.New("unknow ldap operation")
 }
 
