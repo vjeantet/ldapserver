@@ -167,13 +167,7 @@ func (c *client) ProcessRequestMessage(request request) {
 		req.Done = make(chan bool)
 		c.requestList[request.getMessageID()] = &req
 		var res = BindResponse{request: &req}
-		if h := c.srv.BindHandler; h != nil {
-			h(res, &req)
-		} else {
-			res.ResultCode = LDAPResultUnwillingToPerform
-			res.DiagnosticMessage = "not implemented"
-			res.Send()
-		}
+		c.srv.BindHandler(res, &req)
 
 	case SearchRequest:
 		var req = request.(SearchRequest)
@@ -182,13 +176,7 @@ func (c *client) ProcessRequestMessage(request request) {
 		c.requestList[request.getMessageID()] = &req
 
 		var res = SearchResponse{request: &req}
-		if h := c.srv.SearchHandler; h != nil {
-			h(res, &req)
-		} else {
-			res.ResultCode = LDAPResultUnwillingToPerform
-			res.DiagnosticMessage = "not implemented"
-			res.Send()
-		}
+		c.srv.SearchHandler(res, &req)
 
 	case AbandonRequest:
 		var req = request.(AbandonRequest)
