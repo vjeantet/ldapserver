@@ -10,6 +10,7 @@ type request interface {
 	getMessageID() int
 	String() string
 	getProtocolOp() protocolOp
+	abort()
 }
 
 type message struct {
@@ -28,8 +29,13 @@ func (m message) getMessageID() int {
 func (m message) String() string {
 	return fmt.Sprintf("MessageId=%d, %s", m.messageID, m.protocolOp.String())
 }
+
 func (m message) getProtocolOp() protocolOp {
 	return m.protocolOp
+}
+
+func (m message) abort() {
+	close(m.Done)
 }
 
 //GetDoneChannel return a channel, which indicate the the request should be
@@ -171,6 +177,32 @@ type ldapResult struct {
 
 func (l ldapResult) encodeToAsn1() []byte {
 	return newMessagePacket(l).Bytes()
+}
+
+// ExtendedResponse operation allows additional operations to be defined for
+// services not already available in the protocol, like the disconnection
+// notification sent by the server before it stops serving
+// The Extended operation allows clients to receive
+// responses with predefined syntaxes and semantics.  These may be
+// defined in RFCs or be private to particular implementations.
+type ExtendedResponse struct {
+	ldapResult
+	request       *BindRequest
+	responseName  string
+	responseValue string
+}
+
+// ExtendedRequest operation allows additional operations to be defined for
+// services not already available in the protocol
+// The Extended operation allows clients to send request with predefined
+// syntaxes and semantics.  These may be defined in RFCs or be private to
+// particular implementations.
+type ExtendedRequest struct {
+	message
+	protocolOp struct {
+		requestName  string
+		requestValue string
+	}
 }
 
 // BindResponse consists simply of an indication from the server of the

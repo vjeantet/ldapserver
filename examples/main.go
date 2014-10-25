@@ -22,8 +22,10 @@ func main() {
 	//Set Unbind request Handler
 	server.SetUnbindHandler(handlerUnbind)
 
+	//TODO: Set Extended request Handler
+	//server.SetExtendedHandler(handlerExtended)
+
 	go server.ListenAndServe()
-	//log.Printf("err = %s", err)
 
 	// Handle SIGINT and SIGTERM.
 	ch := make(chan os.Signal)
@@ -58,7 +60,7 @@ func handleSearch(w ldap.SearchResponse, r *ldap.SearchRequest) {
 	// log.Printf("Request Filter=%s", r.GetFilter())
 	// log.Printf("Request Attributes=%s", r.GetAttributes())
 
-	for {
+	for i := 0; i < 5; i++ {
 		// Handle Stop Signal (server stop / client disconnected / Abandoned request....)
 		select {
 		case <-r.GetDoneChannel():

@@ -14,13 +14,13 @@ type Server struct {
 	ReadTimeout  time.Duration // optional read timeout
 	WriteTimeout time.Duration // optional write timeout
 	wg           sync.WaitGroup
-	ch           chan bool
+	chDone       chan bool // Channel Done, value => shutdown
 
 	// OnNewConnection, if non-nil, is called on new connections.
 	// If it returns non-nil, the connection is closed.
 	OnNewConnection func(c net.Conn) error
 
-	// bindHandler called on bind request
+	// BindHandler called on bind request
 	BindHandler func(BindResponse, *BindRequest)
 
 	// SearchHandler called on search request
@@ -54,12 +54,12 @@ func (s *Server) SetUnbindHandler(fn func(*UnbindRequest)) {
 // entry, or from a whole subtree of entries.
 // Use the SearchResponse to send all SearchResultEntry
 // The fn func should take care of timeLimit and sizeLimit and send the adequats Ldap Response
-//     LDAPResultTimeLimitExceeded, LDAPResultSizeLimitExceeded, ....
+// LDAPResultTimeLimitExceeded, LDAPResultSizeLimitExceeded, ....
 // The fn func should set the result code to send back to the client, if eerything is ok, a resultCode set
-//     to LDAPResultSuccess
+// to LDAPResultSuccess
 // Listen to *SearchRequest.GetDoneChannel() channel, when a value comes out of this
-//    channel it means that responses may consumed by the client, because of a AbandonRequest,
-//    a Server stop, etc....
+// channel it means that responses may consumed by the client, because of a AbandonRequest,
+// a Server stop, etc....
 func (s *Server) SetSearchHandler(fn func(SearchResponse, *SearchRequest)) {
 	s.SearchHandler = fn
 
@@ -89,19 +89,19 @@ func (s *Server) ListenAndServe() error {
 }
 
 // Termination of the LDAP session is initiated by the server sending a
-//    Notice of Disconnection.  In this case, each
-//    protocol peer gracefully terminates the LDAP session by ceasing
-//    exchanges at the LDAP message layer, tearing down any SASL layer,
-//    tearing down any TLS layer, and closing the transport connection.
-//    A protocol peer may determine that the continuation of any
-//    communication would be pernicious, and in this case, it may abruptly
-//    terminate the session by ceasing communication and closing the
-//    transport connection.
-//    In either case, when the LDAP session is terminated.
+// Notice of Disconnection.  In this case, each
+// protocol peer gracefully terminates the LDAP session by ceasing
+// exchanges at the LDAP message layer, tearing down any SASL layer,
+// tearing down any TLS layer, and closing the transport connection.
+// A protocol peer may determine that the continuation of any
+// communication would be pernicious, and in this case, it may abruptly
+// terminate the session by ceasing communication and closing the
+// transport connection.
+// In either case, when the LDAP session is terminated.
 // TODO: Send a Disconnection notification
 func (s *Server) Stop() {
-	close(s.ch)
-	log.Print("waiting for client connections to be closed...")
+	close(s.chDone)
+	log.Print("waiting for clients shutdown...")
 	s.wg.Wait()
 	log.Print("all client connections closed")
 }
@@ -109,11 +109,11 @@ func (s *Server) Stop() {
 // Handle requests messages on the ln listener
 func (s *Server) serve(ln *net.TCPListener) error {
 	defer ln.Close()
-	s.ch = make(chan bool)
+	s.chDone = make(chan bool)
 	i := 0
 	for {
 		select {
-		case <-s.ch:
+		case <-s.chDone:
 			log.Print("Stopping server")
 			ln.Close()
 			return nil

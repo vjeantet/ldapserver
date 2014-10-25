@@ -10,14 +10,15 @@ import (
 )
 
 type client struct {
-	Numero  int
-	srv     *Server
-	rwc     net.Conn
-	br      *bufio.Reader
-	bw      *bufio.Writer
-	chanOut chan response
-	wg      sync.WaitGroup
-	closing bool
+	Numero      int
+	srv         *Server
+	rwc         net.Conn
+	br          *bufio.Reader
+	bw          *bufio.Writer
+	chanOut     chan response
+	wg          sync.WaitGroup
+	closing     bool
+	requestList map[int]request
 }
 
 func (c *client) Addr() net.Addr {
@@ -39,6 +40,7 @@ func (c *client) serve() {
 	// Handlers will stop to send more respones
 	c.chanOut = make(chan response)
 
+	// for each message in c.chanOut send it to client
 	go func() {
 		defer log.Println("reponses pipeline stopped")
 
@@ -48,82 +50,120 @@ func (c *client) serve() {
 
 	}()
 
-	for {
-
-		select {
-		case <-c.srv.ch:
-			log.Print("Stopping client")
-			//TODO: return a UnwillingToPerform to the messagePacket request
-			return
-		default:
+	// Listen for server signal to shutdown
+	go func() {
+		for {
+			select {
+			case <-c.srv.chDone: // server signals shutdown process
+				log.Printf("Stopping client [%d]", c.Numero)
+				c.rwc.SetReadDeadline(time.Now().Add(time.Second))
+				return
+				//TODO: return a UnwillingToPerform to the messagePacket request
+			default:
+				if c.closing == true {
+					return
+				}
+			}
 		}
+	}()
+
+	c.requestList = make(map[int]request)
+
+	for {
 
 		if c.srv.ReadTimeout != 0 {
 			c.rwc.SetReadDeadline(time.Now().Add(c.srv.ReadTimeout))
 		}
-		//Read the ASN1/BER binary message
+
+		//Read client input as a ASN1/BER binary message
 		messagePacket, err := readMessagePacket(c.br)
 		if err != nil {
 			log.Printf("Erreur readMessagePacket: %s", err)
-			c.srv.ch <- true
 			return
 		}
 
-		//Convert binaryMessage to a ldap RequestMessage
+		// if client is in closing mode, drop message and exit
+		if c.closing == true {
+			log.Print("one client message dropped !")
+			return
+		}
+
+		//Convert ASN1 binaryMessage to a ldap RequestMessage
 		var request request
 		request, err = messagePacket.getRequestMessage()
-
 		if err != nil {
 			log.Printf("Error : %s", err.Error())
 			return
 		}
-
-		// TODO: Use a implementation to limit runnuning request by client
-		// NOTE test
-		// And WHILE the limit is reached THEN send a BusyLdapMessage
-
 		log.Printf("<<< %d - %s - hex=%x", c.Numero, reflect.TypeOf(request).Name(), messagePacket.Packet.Bytes())
 
+		// TODO: Use a implementation to limit runnuning request by client
+		// solution 1 : when the buffered output channel is full, send a busy
+		// solution 2 : when 10 client requests (goroutines) are running, send a busy message
+		// And when the limit is reached THEN send a BusyLdapMessage
+
+		// When message is an UnbindRequest, stop serving
 		if _, ok := request.(UnbindRequest); ok {
 			return
+		} else {
+
+			c.wg.Add(1)
+			go c.ProcessRequestMessage(request)
 		}
-
-		c.wg.Add(1)
-		go c.ProcessRequestMessage(request)
-
 	}
 
 }
 
+// close closes client,
+// * stop reading from client
+// * signals to all currently running request processor to stop
+// * wait for all request processor to end
+// * close client connection
+// * signal to server that client shutdown is ok
 func (c *client) close() {
+	log.Printf("client %d close()", c.Numero)
 	c.closing = true
-	log.Print("waiting the end of current client's requests")
+	// stop reading from client
+	c.rwc.SetReadDeadline(time.Now().Add(time.Second))
+
+	// signals to all currently running request processor to stop
+	for messageID, request := range c.requestList {
+		log.Printf("Client %d Send Quit Signal to request with messageID = %d", c.Numero, messageID)
+		request.abort()
+	}
+
+	// wait for all request processor to end
+	log.Printf("waiting the end of current (%d) client's requests", c.Numero)
 	c.wg.Wait()
 	close(c.chanOut)
-	log.Print("client's requests ended")
+	log.Printf("client's (%d)requests ended", c.Numero)
 
+	// close client connection
 	c.rwc.Close()
-
-	c.srv.wg.Done()
 	log.Printf("Connection client [%d] closed", c.Numero)
+
+	// signal to server that client shutdown is ok
+	c.srv.wg.Done()
 }
 
 func (c *client) writeLdapResult(lr response) {
 	//TODO: encodingToAsn1 should not be reponsability of Response, maybe messagepacket
 	data := lr.encodeToAsn1()
-	log.Printf(">>> %d - %s - hex=%x", c.Numero, reflect.TypeOf(lr).Name(), data)
+	//log.Printf(">>> %d - %s - hex=%x", c.Numero, reflect.TypeOf(lr).Name(), data)
 	c.bw.Write(data)
 	c.bw.Flush()
 }
 
 func (c *client) ProcessRequestMessage(request request) {
 	defer c.wg.Done()
+	defer delete(c.requestList, request.getMessageID())
 
 	switch v := request.(type) {
 	case BindRequest:
 		var req = request.(BindRequest)
 		req.out = c.chanOut
-		req.Done = c.srv.ch
+		req.Done = make(chan bool)
+		c.requestList[request.getMessageID()] = &req
 		var res = BindResponse{request: &req}
 		if h := c.srv.BindHandler; h != nil {
 			h(res, &req)
@@ -136,7 +176,9 @@ func (c *client) ProcessRequestMessage(request request) {
 	case SearchRequest:
 		var req = request.(SearchRequest)
 		req.out = c.chanOut
-		req.Done = c.srv.ch
+		req.Done = make(chan bool)
+		c.requestList[request.getMessageID()] = &req
+
 		var res = SearchResponse{request: &req}
 		if h := c.srv.SearchHandler; h != nil {
 			h(res, &req)
