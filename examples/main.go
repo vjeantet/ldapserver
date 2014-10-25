@@ -19,9 +19,6 @@ func main() {
 	//Set Bind request Handler
 	server.SetBindHandler(handlerBind)
 
-	//Set Unbind request Handler
-	server.SetUnbindHandler(handlerUnbind)
-
 	//TODO: Set Extended request Handler
 	//server.SetExtendedHandler(handlerExtended)
 
@@ -34,12 +31,6 @@ func main() {
 	close(ch)
 
 	server.Stop()
-}
-
-// A successfull unbind request should not send any response, but close the
-// the current connexion, even if something wrong happen
-func handlerUnbind(r *ldap.UnbindRequest) {
-	return
 }
 
 func handlerBind(w ldap.BindResponse, r *ldap.BindRequest) {

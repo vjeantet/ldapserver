@@ -25,26 +25,10 @@ type Server struct {
 
 	// SearchHandler called on search request
 	SearchHandler func(SearchResponse, *SearchRequest)
-
-	// UnbindRequestHandler called on unbind request
-	UnbindHandler func(*UnbindRequest)
 }
 
 func (s *Server) SetBindHandler(fn func(BindResponse, *BindRequest)) {
 	s.BindHandler = fn
-}
-
-// SetUnbindHandler handle Unbind's operations
-// The function of the Unbind operation is to terminate an LDAP session.
-// The Unbind operation is not the antithesis of the Bind operation as
-// the name implies.  The naming of these operations are historical.
-// The Unbind operation should be thought of as the "quit" operation.
-// The client, upon transmission of the UnbindRequest, and the server,
-// upon receipt of the UnbindRequest, are to gracefully terminate the
-// LDAP session.
-// This handler can be only used to get the unbindRequest.
-func (s *Server) SetUnbindHandler(fn func(*UnbindRequest)) {
-	s.UnbindHandler = fn
 }
 
 // SetSearchHandler handle Search's operations used to request a server to return, subject
