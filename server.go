@@ -132,6 +132,16 @@ func (s *Server) serve(ln *net.TCPListener) error {
 		s.AddHandler = handleAddRequest
 	}
 
+	// When no ModifyHandler is set, use the default one to return an OperationError
+	if s.ModifyHandler == nil {
+		s.ModifyHandler = handleModifyRequest
+	}
+
+	// When no DeleteHandler is set, use the default one to return an OperationError
+	if s.DeleteHandler == nil {
+		s.DeleteHandler = handleDeleteRequest
+	}
+
 	s.chDone = make(chan bool)
 	i := 0
 	for {

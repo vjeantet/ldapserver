@@ -23,3 +23,15 @@ func handleAddRequest(w AddResponse, r *AddRequest) {
 	w.Send()
 	return
 }
+
+func handleDeleteRequest(w DeleteResponse, r *DeleteRequest) {
+	w.ResultCode = LDAPResultOperationsError
+	w.Send()
+	return
+}
+
+func handleModifyRequest(w ModifyResponse, r *ModifyRequest) {
+	w.ResultCode = LDAPResultOperationsError
+	w.Send()
+	return
+}
