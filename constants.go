@@ -93,6 +93,20 @@ const (
 	ErrorDebugging       = 203
 )
 
+// Modify Request Operation code
+const (
+	ModifyRequestChangeOperationAdd     = 0
+	ModifyRequestChangeOperationDelete  = 1
+	ModifyRequestChangeOperationReplace = 2
+)
+
+// Search scope constant
+const (
+	SearchRequestScopeBaseObject = 0
+	SearchRequestSingleLevel     = 1
+	SearchRequestHomeSubtree     = 2
+)
+
 // LDAPOID is a notational convenience to indicate that the
 // permitted value of this string is a (UTF-8 encoded) dotted-decimal
 // representation of an OBJECT IDENTIFIER.  Although an LDAPOID is

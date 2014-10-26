@@ -23,7 +23,7 @@ func main() {
 	server.SetAddHandler(handlerAdd)
 
 	//TODO: Set Modify request Handler
-	// server.SetModifyHandler(handlerModify)
+	server.SetModifyHandler(handlerModify)
 
 	//TODO: Set Delete request Handler
 	server.SetDeleteHandler(handlerDelete)
@@ -63,6 +63,33 @@ func handlerAdd(w ldap.AddResponse, r *ldap.AddRequest) {
 			log.Printf("- %s:%s", attribute.GetDescription(), attributeValue)
 		}
 	}
+	w.ResultCode = ldap.LDAPResultSuccess
+	w.Send()
+}
+
+func handlerModify(w ldap.ModifyResponse, r *ldap.ModifyRequest) {
+	log.Printf("Modify entry: %s", r.GetObject())
+	log.Printf("Request : %V", w)
+
+	for _, change := range r.GetChanges() {
+		modification := change.GetModification()
+		var operationString string
+		switch change.GetOperation() {
+		case ldap.ModifyRequestChangeOperationAdd:
+			operationString = "Add"
+		case ldap.ModifyRequestChangeOperationDelete:
+			operationString = "Delete"
+		case ldap.ModifyRequestChangeOperationReplace:
+			operationString = "Replace"
+		}
+
+		log.Printf("%s attribute '%s'", operationString, modification.GetDescription())
+		for _, attributeValue := range modification.GetValues() {
+			log.Printf("- value: %s", attributeValue)
+		}
+
+	}
+
 	w.ResultCode = ldap.LDAPResultSuccess
 	w.Send()
 }

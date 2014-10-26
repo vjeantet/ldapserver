@@ -54,6 +54,26 @@ func (msg *messagePacket) getRequestMessage() (request, error) {
 		return r, nil
 	}
 
+	if msg.getOperation() == ApplicationModifyRequest {
+		var r ModifyRequest
+		r.message = mm
+		r.protocolOp.object = LDAPDN(msg.Packet.Children[1].Children[0].Data.Bytes())
+		for i := range msg.Packet.Children[1].Children[1].Children {
+			operation := int(msg.Packet.Children[1].Children[1].Children[i].Children[0].Value.(uint64))
+			attributeName := msg.Packet.Children[1].Children[1].Children[i].Children[1].Children[0].Value.(string)
+			modifyRequestChange := modifyRequestChange{operation: operation}
+			rattribute := PartialAttribute{type_: AttributeDescription(attributeName)}
+			for j := range msg.Packet.Children[1].Children[1].Children[i].Children[1].Children[1].Children {
+				value := msg.Packet.Children[1].Children[1].Children[i].Children[1].Children[1].Children[j].Value.(string)
+				rattribute.vals = append(rattribute.vals, AttributeValue(value))
+			}
+			modifyRequestChange.modification = rattribute
+			r.protocolOp.changes = append(r.protocolOp.changes, modifyRequestChange)
+		}
+
+		return r, nil
+	}
+
 	if msg.getOperation() == ApplicationDelRequest {
 		var r DeleteRequest
 		r.message = mm
@@ -253,6 +273,17 @@ func newMessagePacket(lr response) *ber.Packet {
 		packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
 		packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(res.request.getMessageID()), "MessageID"))
 		packet2 := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationDelResponse, nil, "Delete response")
+		packet2.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagEnumerated, uint64(res.ResultCode), "ResultCode"))
+		packet2.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, string(res.MatchedDN), "MatchedDN"))
+		packet2.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, res.DiagnosticMessage, "DiagnosticMessage"))
+		packet.AppendChild(packet2)
+		return packet
+
+	case ModifyResponse:
+		var res = lr.(ModifyResponse)
+		packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
+		packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(res.request.getMessageID()), "MessageID"))
+		packet2 := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationModifyResponse, nil, "Modify response")
 		packet2.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagEnumerated, uint64(res.ResultCode), "ResultCode"))
 		packet2.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, string(res.MatchedDN), "MatchedDN"))
 		packet2.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, res.DiagnosticMessage, "DiagnosticMessage"))

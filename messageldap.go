@@ -123,6 +123,50 @@ func (r DeleteResponse) encodeToAsn1() []byte {
 	return newMessagePacket(r).Bytes()
 }
 
+type ModifyRequest struct {
+	message
+	protocolOp struct {
+		object  LDAPDN
+		changes []modifyRequestChange
+	}
+}
+
+func (r *ModifyRequest) GetChanges() []modifyRequestChange {
+	return r.protocolOp.changes
+}
+
+type modifyRequestChange struct {
+	operation    int
+	modification PartialAttribute
+}
+
+func (r *modifyRequestChange) GetModification() PartialAttribute {
+	return r.modification
+}
+
+func (r *modifyRequestChange) GetOperation() int {
+	return r.operation
+}
+
+func (r *ModifyRequest) GetObject() LDAPDN {
+	return r.protocolOp.object
+}
+
+type ModifyResponse struct {
+	ldapResult
+	request *ModifyRequest
+}
+
+func (r ModifyResponse) encodeToAsn1() []byte {
+	return newMessagePacket(r).Bytes()
+}
+func (r *ModifyResponse) Send() {
+	if r.request.out != nil {
+		r.request.out <- *r
+		r.request.wroteMessage++
+	}
+}
+
 // AddRequest is a definition of the Add Operation
 type AddRequest struct {
 	message

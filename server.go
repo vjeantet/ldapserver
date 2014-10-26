@@ -31,6 +31,13 @@ type Server struct {
 
 	// DeleteHandler called on delete request
 	DeleteHandler func(DeleteResponse, *DeleteRequest)
+
+	// ModifyHandler called on delete request
+	ModifyHandler func(ModifyResponse, *ModifyRequest)
+}
+
+func (s *Server) SetModifyHandler(fn func(ModifyResponse, *ModifyRequest)) {
+	s.ModifyHandler = fn
 }
 
 func (s *Server) SetAddHandler(fn func(AddResponse, *AddRequest)) {

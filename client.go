@@ -209,6 +209,15 @@ func (c *client) ProcessRequestMessage(request request) {
 		var res = DeleteResponse{request: &req}
 		c.srv.DeleteHandler(res, &req)
 
+	case ModifyRequest:
+		var req = request.(ModifyRequest)
+		req.out = c.chanOut
+		req.Done = make(chan bool)
+		c.requestList[request.getMessageID()] = &req
+
+		var res = ModifyResponse{request: &req}
+		c.srv.ModifyHandler(res, &req)
+
 	case UnbindRequest:
 		log.Print("Unbind Request sould not be handled here")
 
