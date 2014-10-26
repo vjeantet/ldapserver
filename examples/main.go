@@ -17,16 +17,16 @@ func main() {
 	server.SetSearchHandler(handleSearch)
 
 	//Set Bind request Handler
-	server.SetBindHandler(handlerBind)
+	server.SetBindHandler(handleBind)
 
 	//TODO: Set Add request Handler
-	server.SetAddHandler(handlerAdd)
+	server.SetAddHandler(handleAdd)
 
 	//TODO: Set Modify request Handler
-	server.SetModifyHandler(handlerModify)
+	server.SetModifyHandler(handleModify)
 
 	//TODO: Set Delete request Handler
-	server.SetDeleteHandler(handlerDelete)
+	server.SetDeleteHandler(handleDelete)
 
 	//TODO: Set Extended request Handler
 	//server.SetExtendedHandler(handlerExtended)
@@ -42,7 +42,7 @@ func main() {
 	server.Stop()
 }
 
-func handlerBind(w ldap.BindResponse, r *ldap.BindRequest) {
+func handleBind(w ldap.BindResponse, r *ldap.BindRequest) {
 	if string(r.GetLogin()) == "myLogin" {
 		w.ResultCode = ldap.LDAPResultSuccess
 		w.Send()
@@ -55,7 +55,7 @@ func handlerBind(w ldap.BindResponse, r *ldap.BindRequest) {
 	w.Send()
 }
 
-func handlerAdd(w ldap.AddResponse, r *ldap.AddRequest) {
+func handleAdd(w ldap.AddResponse, r *ldap.AddRequest) {
 	log.Printf("Adding entry: %s", r.GetEntryDN())
 	//attributes values
 	for _, attribute := range r.GetAttributes() {
@@ -67,7 +67,7 @@ func handlerAdd(w ldap.AddResponse, r *ldap.AddRequest) {
 	w.Send()
 }
 
-func handlerModify(w ldap.ModifyResponse, r *ldap.ModifyRequest) {
+func handleModify(w ldap.ModifyResponse, r *ldap.ModifyRequest) {
 	log.Printf("Modify entry: %s", r.GetObject())
 	log.Printf("Request : %V", w)
 
@@ -94,7 +94,7 @@ func handlerModify(w ldap.ModifyResponse, r *ldap.ModifyRequest) {
 	w.Send()
 }
 
-func handlerDelete(w ldap.DeleteResponse, r *ldap.DeleteRequest) {
+func handleDelete(w ldap.DeleteResponse, r *ldap.DeleteRequest) {
 	log.Printf("Deleting entry: %s", r.GetEntryDN())
 	w.ResultCode = ldap.LDAPResultSuccess
 	w.Send()
