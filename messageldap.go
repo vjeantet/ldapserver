@@ -96,6 +96,39 @@ type UnbindRequest struct {
 	}
 }
 
+// AddRequest is a definition of the Add Operation
+type AddRequest struct {
+	message
+	protocolOp struct {
+		entry      LDAPDN
+		attributes [][]byte
+	}
+}
+
+func (r *AddRequest) GetEntry() LDAPDN {
+	return r.protocolOp.entry
+}
+
+func (r *AddRequest) GetAttributes() [][]byte {
+	return r.protocolOp.attributes
+}
+
+type AddResponse struct {
+	ldapResult
+	request *AddRequest
+}
+
+func (r *AddResponse) Send() {
+	if r.request.out != nil {
+		r.request.out <- *r
+		r.request.wroteMessage++
+	}
+}
+
+func (r AddResponse) encodeToAsn1() []byte {
+	return newMessagePacket(r).Bytes()
+}
+
 // SearchRequest is a definition of the Search Operation
 // baseObject - The name of the base object entry (or possibly the root) relative to which the Search is to be performed
 type SearchRequest struct {

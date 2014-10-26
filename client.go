@@ -191,6 +191,15 @@ func (c *client) ProcessRequestMessage(request request) {
 			log.Printf("Abandon signal sent to request processor [messageID=%d]", messageIDToAbandon)
 		}
 
+	case AddRequest:
+		var req = request.(AddRequest)
+		req.out = c.chanOut
+		req.Done = make(chan bool)
+		c.requestList[request.getMessageID()] = &req
+
+		var res = AddResponse{request: &req}
+		c.srv.AddHandler(res, &req)
+
 	case UnbindRequest:
 		log.Print("Unbind Request sould not be handled here")
 

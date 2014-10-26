@@ -25,6 +25,13 @@ type Server struct {
 
 	// SearchHandler called on search request
 	SearchHandler func(SearchResponse, *SearchRequest)
+
+	// AddHandler called on add request
+	AddHandler func(AddResponse, *AddRequest)
+}
+
+func (s *Server) SetAddHandler(fn func(AddResponse, *AddRequest)) {
+	s.AddHandler = fn
 }
 
 func (s *Server) SetBindHandler(fn func(BindResponse, *BindRequest)) {
@@ -104,6 +111,11 @@ func (s *Server) serve(ln *net.TCPListener) error {
 	// and a Success response code
 	if s.SearchHandler == nil {
 		s.SearchHandler = handleSearchRequest
+	}
+
+	// When no AddHandler is set, use the default one to return an OperationError
+	if s.AddHandler == nil {
+		s.AddHandler = handleAddRequest
 	}
 
 	s.chDone = make(chan bool)

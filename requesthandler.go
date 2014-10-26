@@ -17,3 +17,9 @@ func handleSearchRequest(w SearchResponse, r *SearchRequest) {
 	w.Send()
 	return
 }
+
+func handleAddRequest(w AddResponse, r *AddRequest) {
+	w.ResultCode = LDAPResultOperationsError
+	w.Send()
+	return
+}
