@@ -26,7 +26,7 @@ func main() {
 	// server.SetModifyHandler(handlerModify)
 
 	//TODO: Set Delete request Handler
-	// server.SetDeleteHandler(handlerDelete)
+	server.SetDeleteHandler(handlerDelete)
 
 	//TODO: Set Extended request Handler
 	//server.SetExtendedHandler(handlerExtended)
@@ -49,15 +49,21 @@ func handlerBind(w ldap.BindResponse, r *ldap.BindRequest) {
 		return
 	}
 
-	log.Print("Bind failed")
+	log.Printf("Bind failed User=%s, Pass=%s", string(r.GetLogin()), string(r.GetPassword()))
 	w.ResultCode = ldap.LDAPResultInvalidCredentials
 	w.DiagnosticMessage = "login / mot de passe invalide"
 	w.Send()
 }
 
 func handlerAdd(w ldap.AddResponse, r *ldap.AddRequest) {
-	log.Printf("Request Add entry: %s", r.GetEntry())
-	log.Printf("Request Attributes : %s", r.GetAttributes())
+	log.Printf("Adding entry: %s", r.GetEntryDN())
+	log.Printf("Adding attributes : %s", r.GetAttributes())
+	w.ResultCode = ldap.LDAPResultSuccess
+	w.Send()
+}
+
+func handlerDelete(w ldap.DeleteResponse, r *ldap.DeleteRequest) {
+	log.Printf("Deleting entry: %s", r.GetEntryDN())
 	w.ResultCode = ldap.LDAPResultSuccess
 	w.Send()
 }
