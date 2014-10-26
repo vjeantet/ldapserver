@@ -43,9 +43,18 @@ func (msg *messagePacket) getRequestMessage() (request, error) {
 		var r AddRequest
 		r.message = mm
 		r.protocolOp.entry = LDAPDN(msg.Packet.Children[1].Children[0].Data.Bytes())
+
 		for i := range msg.Packet.Children[1].Children[1].Children {
 			r.protocolOp.attributes = append(r.protocolOp.attributes, msg.Packet.Children[1].Children[1].Children[i].Data.Bytes())
 		}
+
+		return r, nil
+	}
+
+	if msg.getOperation() == ApplicationDelRequest {
+		var r DeleteRequest
+		r.message = mm
+		r.protocolOp = LDAPDN(msg.Packet.Children[1].Data.Bytes())
 		return r, nil
 	}
 
@@ -230,6 +239,17 @@ func newMessagePacket(lr response) *ber.Packet {
 		packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
 		packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(res.request.getMessageID()), "MessageID"))
 		packet2 := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationAddResponse, nil, "Add response")
+		packet2.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagEnumerated, uint64(res.ResultCode), "ResultCode"))
+		packet2.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, string(res.MatchedDN), "MatchedDN"))
+		packet2.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, res.DiagnosticMessage, "DiagnosticMessage"))
+		packet.AppendChild(packet2)
+		return packet
+
+	case DeleteResponse:
+		var res = lr.(DeleteResponse)
+		packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
+		packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(res.request.getMessageID()), "MessageID"))
+		packet2 := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationDelResponse, nil, "Delete response")
 		packet2.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagEnumerated, uint64(res.ResultCode), "ResultCode"))
 		packet2.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, string(res.MatchedDN), "MatchedDN"))
 		packet2.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, res.DiagnosticMessage, "DiagnosticMessage"))

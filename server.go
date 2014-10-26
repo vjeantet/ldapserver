@@ -28,10 +28,17 @@ type Server struct {
 
 	// AddHandler called on add request
 	AddHandler func(AddResponse, *AddRequest)
+
+	// DeleteHandler called on delete request
+	DeleteHandler func(DeleteResponse, *DeleteRequest)
 }
 
 func (s *Server) SetAddHandler(fn func(AddResponse, *AddRequest)) {
 	s.AddHandler = fn
+}
+
+func (s *Server) SetDeleteHandler(fn func(DeleteResponse, *DeleteRequest)) {
+	s.DeleteHandler = fn
 }
 
 func (s *Server) SetBindHandler(fn func(BindResponse, *BindRequest)) {
