@@ -45,9 +45,12 @@ func (msg *messagePacket) getRequestMessage() (request, error) {
 		r.protocolOp.entry = LDAPDN(msg.Packet.Children[1].Children[0].Data.Bytes())
 
 		for i := range msg.Packet.Children[1].Children[1].Children {
-			r.protocolOp.attributes = append(r.protocolOp.attributes, msg.Packet.Children[1].Children[1].Children[i].Data.Bytes())
+			rattribute := Attribute{type_: AttributeDescription(msg.Packet.Children[1].Children[1].Children[i].Children[0].Data.Bytes())}
+			for j := range msg.Packet.Children[1].Children[1].Children[i].Children[1].Children {
+				rattribute.vals = append(rattribute.vals, AttributeValue(msg.Packet.Children[1].Children[1].Children[i].Children[1].Children[j].Data.Bytes()))
+			}
+			r.protocolOp.attributes = append(r.protocolOp.attributes, rattribute)
 		}
-
 		return r, nil
 	}
 

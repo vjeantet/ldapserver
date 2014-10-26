@@ -57,7 +57,12 @@ func handlerBind(w ldap.BindResponse, r *ldap.BindRequest) {
 
 func handlerAdd(w ldap.AddResponse, r *ldap.AddRequest) {
 	log.Printf("Adding entry: %s", r.GetEntryDN())
-	log.Printf("Adding attributes : %s", r.GetAttributes())
+	//attributes values
+	for _, attribute := range r.GetAttributes() {
+		for _, attributeValue := range attribute.GetValues() {
+			log.Printf("- %s:%s", attribute.GetDescription(), attributeValue)
+		}
+	}
 	w.ResultCode = ldap.LDAPResultSuccess
 	w.Send()
 }

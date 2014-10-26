@@ -128,16 +128,17 @@ type AddRequest struct {
 	message
 	protocolOp struct {
 		entry      LDAPDN
-		attributes [][]byte
+		attributes AttributeList
 	}
 }
 
-func (r *AddRequest) GetEntry() LDAPDN {
+func (r *AddRequest) GetEntryDN() LDAPDN {
 	return r.protocolOp.entry
 }
 
-func (r *AddRequest) GetAttributes() [][]byte {
+func (r *AddRequest) GetAttributes() AttributeList {
 	return r.protocolOp.attributes
+
 }
 
 type AddResponse struct {
