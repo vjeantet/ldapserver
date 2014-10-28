@@ -34,6 +34,9 @@ type Server struct {
 
 	// ModifyHandler called on delete request
 	ModifyHandler func(ModifyResponse, *ModifyRequest)
+
+	// ExtendedHandler called on delete request
+	ExtendedHandler func(ExtendedResponse, *ExtendedRequest)
 }
 
 func (s *Server) SetModifyHandler(fn func(ModifyResponse, *ModifyRequest)) {
@@ -50,6 +53,10 @@ func (s *Server) SetDeleteHandler(fn func(DeleteResponse, *DeleteRequest)) {
 
 func (s *Server) SetBindHandler(fn func(BindResponse, *BindRequest)) {
 	s.BindHandler = fn
+}
+
+func (s *Server) SetExtendedHandler(fn func(ExtendedResponse, *ExtendedRequest)) {
+	s.ExtendedHandler = fn
 }
 
 // SetSearchHandler handle Search's operations used to request a server to return, subject
@@ -140,6 +147,11 @@ func (s *Server) serve(ln *net.TCPListener) error {
 	// When no DeleteHandler is set, use the default one to return an OperationError
 	if s.DeleteHandler == nil {
 		s.DeleteHandler = handleDeleteRequest
+	}
+
+	// When no ExtendedHandler is set, use the default one to return an OperationError
+	if s.ExtendedHandler == nil {
+		s.ExtendedHandler = handleExtendedRequest
 	}
 
 	s.chDone = make(chan bool)

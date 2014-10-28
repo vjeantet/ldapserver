@@ -115,6 +115,7 @@ type LDAPOID string
 // Extended operation responseName and requestName
 const (
 	NoticeOfDisconnection LDAPOID = "1.3.6.1.4.1.1466.2003"
+	NoticeOfCancel        LDAPOID = "1.3.6.1.1.8"
 )
 
 // ###################################################

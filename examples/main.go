@@ -29,7 +29,7 @@ func main() {
 	server.SetDeleteHandler(handleDelete)
 
 	//TODO: Set Extended request Handler
-	//server.SetExtendedHandler(handlerExtended)
+	server.SetExtendedHandler(handleExtended)
 
 	go server.ListenAndServe()
 
@@ -96,6 +96,13 @@ func handleModify(w ldap.ModifyResponse, r *ldap.ModifyRequest) {
 
 func handleDelete(w ldap.DeleteResponse, r *ldap.DeleteRequest) {
 	log.Printf("Deleting entry: %s", r.GetEntryDN())
+	w.ResultCode = ldap.LDAPResultSuccess
+	w.Send()
+}
+
+func handleExtended(w ldap.ExtendedResponse, r *ldap.ExtendedRequest) {
+	log.Printf("Extended request received, name=%s", r.GetResponseName())
+	log.Printf("Extended request received, value=%x", r.GetResponseValue())
 	w.ResultCode = ldap.LDAPResultSuccess
 	w.Send()
 }

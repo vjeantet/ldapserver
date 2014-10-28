@@ -124,7 +124,7 @@ func (c *client) serve() {
 // * signal to server that client shutdown is ok
 func (c *client) close() {
 	log.Printf("client %d close()", c.Numero)
-	c.closing = true
+	c.closing = true //FIXME: subject to data race condition ?
 	// stop reading from client
 	c.rwc.SetReadDeadline(time.Now().Add(time.Second))
 
@@ -221,8 +221,16 @@ func (c *client) ProcessRequestMessage(request request) {
 	case UnbindRequest:
 		log.Print("Unbind Request sould not be handled here")
 
+	case ExtendedRequest:
+		var req = request.(ExtendedRequest)
+		req.out = c.chanOut
+		req.Done = make(chan bool)
+		c.requestList[request.getMessageID()] = &req
+		var res = ExtendedResponse{request: &req}
+		c.srv.ExtendedHandler(res, &req)
+
 	default:
-		log.Printf("WARNING : unexpected type %v", v)
+		log.Printf("WARNING : unexpected type %V", v)
 	}
 
 }

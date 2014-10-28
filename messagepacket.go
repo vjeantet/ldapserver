@@ -81,6 +81,17 @@ func (msg *messagePacket) getRequestMessage() (request, error) {
 		return r, nil
 	}
 
+	if msg.getOperation() == ApplicationExtendedRequest {
+		var r ExtendedRequest
+		r.message = mm
+		r.protocolOp.requestName = LDAPOID(msg.Packet.Children[1].Children[0].Data.Bytes())
+		if len(msg.Packet.Children[1].Children) > 1 {
+			r.protocolOp.requestValue = msg.Packet.Children[1].Children[1].Data.Bytes()
+		}
+
+		return r, nil
+	}
+
 	if msg.getOperation() == ApplicationSearchRequest {
 		var sr SearchRequest
 		sr.message = mm

@@ -294,9 +294,16 @@ func (l ldapResult) encodeToAsn1() []byte {
 // defined in RFCs or be private to particular implementations.
 type ExtendedResponse struct {
 	ldapResult
-	request       *BindRequest
+	request       *ExtendedRequest
 	responseName  LDAPOID
 	responseValue string
+}
+
+func (r *ExtendedResponse) Send() {
+	if r.request.out != nil {
+		r.request.out <- *r
+		r.request.wroteMessage++
+	}
 }
 
 // ExtendedRequest operation allows additional operations to be defined for
@@ -308,8 +315,16 @@ type ExtendedRequest struct {
 	message
 	protocolOp struct {
 		requestName  LDAPOID
-		requestValue string
+		requestValue []byte
 	}
+}
+
+func (r *ExtendedRequest) GetResponseName() LDAPOID {
+	return r.protocolOp.requestName
+}
+
+func (r *ExtendedRequest) GetResponseValue() []byte {
+	return r.protocolOp.requestValue
 }
 
 // AbandonRequest operation's function is allow a client to request
