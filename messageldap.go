@@ -119,10 +119,6 @@ func (r *DeleteResponse) Send() {
 	}
 }
 
-func (r DeleteResponse) encodeToAsn1() []byte {
-	return newMessagePacket(r).Bytes()
-}
-
 type ModifyRequest struct {
 	message
 	protocolOp struct {
@@ -157,9 +153,6 @@ type ModifyResponse struct {
 	request *ModifyRequest
 }
 
-func (r ModifyResponse) encodeToAsn1() []byte {
-	return newMessagePacket(r).Bytes()
-}
 func (r *ModifyResponse) Send() {
 	if r.request.out != nil {
 		r.request.out <- *r
@@ -195,10 +188,6 @@ func (r *AddResponse) Send() {
 		r.request.out <- *r
 		r.request.wroteMessage++
 	}
-}
-
-func (r AddResponse) encodeToAsn1() []byte {
-	return newMessagePacket(r).Bytes()
 }
 
 // SearchRequest is a definition of the Search Operation
@@ -267,7 +256,6 @@ func (s SearchRequest) String() string {
 
 // response is the interface implemented by each ldap response (BinResponse, SearchResponse, SearchEntryResult,...) struct
 type response interface {
-	encodeToAsn1() []byte
 }
 
 // ldapResult is the construct used in LDAP protocol to return
@@ -280,10 +268,6 @@ type ldapResult struct {
 	MatchedDN         LDAPDN
 	DiagnosticMessage string
 	referral          interface{}
-}
-
-func (l ldapResult) encodeToAsn1() []byte {
-	return newMessagePacket(l).Bytes()
 }
 
 // ExtendedResponse operation allows additional operations to be defined for
@@ -367,14 +351,6 @@ func (r *SearchResponse) Send() {
 	}
 }
 
-func (r SearchResponse) encodeToAsn1() []byte {
-	return newMessagePacket(r).Bytes()
-}
-
-func (r BindResponse) encodeToAsn1() []byte {
-	return newMessagePacket(r).Bytes()
-}
-
 func (r BindResponse) String() string {
 	return ""
 }
@@ -420,13 +396,6 @@ func (e *SearchResultEntry) SetDn(dn string) {
 func (e *SearchResultEntry) AddAttribute(name string, values ...string) {
 	var ea = &entryAttribute{Name: name, Values: values}
 	e.attributes = append(e.attributes, ea)
-}
-
-func (r ExtendedResponse) encodeToAsn1() []byte {
-	return newMessagePacket(r).Bytes()
-}
-func (e SearchResultEntry) encodeToAsn1() []byte {
-	return newMessagePacket(e).Bytes()
 }
 
 type entryAttribute struct {

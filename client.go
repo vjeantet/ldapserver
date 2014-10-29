@@ -149,8 +149,7 @@ func (c *client) close() {
 }
 
 func (c *client) writeLdapResult(lr response) {
-	//TODO: encodingToAsn1 should not be reponsability of Response, maybe messagepacket
-	data := lr.encodeToAsn1()
+	data := newMessagePacket(lr).Bytes()
 	log.Printf(">>> %d - %s - hex=%x", c.Numero, reflect.TypeOf(lr).Name(), data)
 	c.bw.Write(data)
 	c.bw.Flush()
