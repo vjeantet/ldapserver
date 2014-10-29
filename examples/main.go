@@ -126,7 +126,7 @@ func handleSearch(w ldap.SearchResponse, r *ldap.SearchRequest) {
 
 	e := new(ldap.SearchResultEntry)
 	e.SetDn("cn=Valere JEANTET, " + string(r.GetBaseObject()))
-	e.AddAttribute("mail", "valere.jeantet@gmail.com")
+	e.AddAttribute("mail", "valere.jeantet@gmail.com", "mail@vjeantet.fr")
 	e.AddAttribute("company", "SODADI")
 	e.AddAttribute("department", "DSI/QSM")
 	e.AddAttribute("l", "Ferrieres en brie")

@@ -242,10 +242,10 @@ func newMessagePacket(lr response) *ber.Packet {
 		attributesList := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Attributes List")
 		for j := range s.attributes {
 			attributes := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "attributes")
-			attributes.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, s.attributes[j].Name, "type"))
+			attributes.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, string(s.attributes[j].GetDescription()), "type"))
 			values := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSet, nil, "values")
-			for k := range s.attributes[j].Values {
-				values.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, s.attributes[j].Values[k], "val"))
+			for k := range s.attributes[j].vals {
+				values.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, string(s.attributes[j].vals[k]), "val"))
 			}
 			attributes.AppendChild(values)
 			attributesList.AppendChild(attributes)

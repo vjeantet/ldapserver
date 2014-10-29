@@ -173,3 +173,17 @@ type OCTETSTRING string
 //
 //        AttributeList ::= SEQUENCE OF attribute Attribute
 type AttributeList []Attribute
+
+//
+//        PartialAttributeList ::= SEQUENCE OF
+//                             partialAttribute PartialAttribute
+type PartialAttributeList []PartialAttribute
+
+func (l *PartialAttributeList) add(p PartialAttribute) {
+	*l = append(*l, p)
+}
+
+// type entryAttribute struct {
+// 	Name   string
+// 	Values []string
+// }
