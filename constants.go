@@ -107,83 +107,8 @@ const (
 	SearchRequestHomeSubtree     = 2
 )
 
-// LDAPOID is a notational convenience to indicate that the
-// permitted value of this string is a (UTF-8 encoded) dotted-decimal
-// representation of an OBJECT IDENTIFIER.  Although an LDAPOID is
-type LDAPOID string
-
 // Extended operation responseName and requestName
 const (
 	NoticeOfDisconnection LDAPOID = "1.3.6.1.4.1.1466.2003"
 	NoticeOfCancel        LDAPOID = "1.3.6.1.1.8"
 )
-
-// ###################################################
-// ################# LDAP TYPEs
-// ###################################################
-
-// LDAPDN is defined to be the representation of a Distinguished Name
-// (DN) after encoding according to the specification
-type LDAPDN string
-
-// respectively, and have the same single octet UTF-8 encoding.  Other
-// Unicode characters have a multiple octet UTF-8 encoding.
-type LDAPString string
-
-//
-//        Attribute ::= PartialAttribute(WITH COMPONENTS {
-//             ...,
-//             vals (SIZE(1..MAX))})
-type Attribute PartialAttribute
-
-func (p *Attribute) GetDescription() AttributeDescription {
-	return p.type_
-}
-func (p *Attribute) GetValues() []AttributeValue {
-	return p.vals
-}
-
-//
-//        PartialAttribute ::= SEQUENCE {
-//             type       AttributeDescription,
-//             vals       SET OF value AttributeValue }
-type PartialAttribute struct {
-	type_ AttributeDescription
-	vals  []AttributeValue
-}
-
-func (p *PartialAttribute) GetDescription() AttributeDescription {
-	return p.type_
-}
-func (p *PartialAttribute) GetValues() []AttributeValue {
-	return p.vals
-}
-
-//
-//        AttributeDescription ::= LDAPString
-//                                -- Constrained to <attributedescription>
-//                                -- [RFC4512]
-type AttributeDescription LDAPString
-
-//        AttributeValue ::= OCTET STRING
-type AttributeValue OCTETSTRING
-
-type OCTETSTRING string
-
-//
-//        AttributeList ::= SEQUENCE OF attribute Attribute
-type AttributeList []Attribute
-
-//
-//        PartialAttributeList ::= SEQUENCE OF
-//                             partialAttribute PartialAttribute
-type PartialAttributeList []PartialAttribute
-
-func (l *PartialAttributeList) add(p PartialAttribute) {
-	*l = append(*l, p)
-}
-
-// type entryAttribute struct {
-// 	Name   string
-// 	Values []string
-// }

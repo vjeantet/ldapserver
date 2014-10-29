@@ -16,83 +16,25 @@ func (msg *messagePacket) getOperation() int {
 	return int(msg.Packet.Children[1].Tag)
 }
 
-func (msg *messagePacket) getMessageID() int {
-	return int(msg.Packet.Children[0].Value.(uint64))
-}
-
 func (msg *messagePacket) getRequestMessage() (request, error) {
 	var mm message
 	mm.messageID = int(msg.Packet.Children[0].Value.(uint64))
 
-	if msg.getOperation() == ApplicationUnbindRequest {
-		var ur UnbindRequest
-		ur.message = mm
-		return ur, nil
-	}
-
-	if msg.getOperation() == ApplicationBindRequest {
+	switch msg.getOperation() {
+	case ApplicationBindRequest:
 		var br BindRequest
 		br.message = mm
 		br.SetLogin(msg.Packet.Children[1].Children[1].Data.Bytes())
 		br.SetPassword(msg.Packet.Children[1].Children[2].Data.Bytes())
 		br.SetVersion(int(msg.Packet.Children[1].Children[0].Value.(uint64)))
 		return br, nil
-	}
 
-	if msg.getOperation() == ApplicationAddRequest {
-		var r AddRequest
-		r.message = mm
-		r.protocolOp.entry = LDAPDN(msg.Packet.Children[1].Children[0].Data.Bytes())
+	case ApplicationUnbindRequest:
+		var ur UnbindRequest
+		ur.message = mm
+		return ur, nil
 
-		for i := range msg.Packet.Children[1].Children[1].Children {
-			rattribute := Attribute{type_: AttributeDescription(msg.Packet.Children[1].Children[1].Children[i].Children[0].Data.Bytes())}
-			for j := range msg.Packet.Children[1].Children[1].Children[i].Children[1].Children {
-				rattribute.vals = append(rattribute.vals, AttributeValue(msg.Packet.Children[1].Children[1].Children[i].Children[1].Children[j].Data.Bytes()))
-			}
-			r.protocolOp.attributes = append(r.protocolOp.attributes, rattribute)
-		}
-		return r, nil
-	}
-
-	if msg.getOperation() == ApplicationModifyRequest {
-		var r ModifyRequest
-		r.message = mm
-		r.protocolOp.object = LDAPDN(msg.Packet.Children[1].Children[0].Data.Bytes())
-		for i := range msg.Packet.Children[1].Children[1].Children {
-			operation := int(msg.Packet.Children[1].Children[1].Children[i].Children[0].Value.(uint64))
-			attributeName := msg.Packet.Children[1].Children[1].Children[i].Children[1].Children[0].Value.(string)
-			modifyRequestChange := modifyRequestChange{operation: operation}
-			rattribute := PartialAttribute{type_: AttributeDescription(attributeName)}
-			for j := range msg.Packet.Children[1].Children[1].Children[i].Children[1].Children[1].Children {
-				value := msg.Packet.Children[1].Children[1].Children[i].Children[1].Children[1].Children[j].Value.(string)
-				rattribute.vals = append(rattribute.vals, AttributeValue(value))
-			}
-			modifyRequestChange.modification = rattribute
-			r.protocolOp.changes = append(r.protocolOp.changes, modifyRequestChange)
-		}
-
-		return r, nil
-	}
-
-	if msg.getOperation() == ApplicationDelRequest {
-		var r DeleteRequest
-		r.message = mm
-		r.protocolOp = LDAPDN(msg.Packet.Children[1].Data.Bytes())
-		return r, nil
-	}
-
-	if msg.getOperation() == ApplicationExtendedRequest {
-		var r ExtendedRequest
-		r.message = mm
-		r.protocolOp.requestName = LDAPOID(msg.Packet.Children[1].Children[0].Data.Bytes())
-		if len(msg.Packet.Children[1].Children) > 1 {
-			r.protocolOp.requestValue = msg.Packet.Children[1].Children[1].Data.Bytes()
-		}
-
-		return r, nil
-	}
-
-	if msg.getOperation() == ApplicationSearchRequest {
+	case ApplicationSearchRequest:
 		var sr SearchRequest
 		sr.message = mm
 		sr.protocolOp.BaseObject = msg.Packet.Children[1].Children[0].Data.Bytes()
@@ -113,16 +55,66 @@ func (msg *messagePacket) getRequestMessage() (request, error) {
 		}
 
 		return sr, nil
-	}
 
-	if msg.getOperation() == ApplicationAbandonRequest {
+	case ApplicationAddRequest:
+		var r AddRequest
+		r.message = mm
+		r.protocolOp.entry = LDAPDN(msg.Packet.Children[1].Children[0].Data.Bytes())
+
+		for i := range msg.Packet.Children[1].Children[1].Children {
+			rattribute := Attribute{type_: AttributeDescription(msg.Packet.Children[1].Children[1].Children[i].Children[0].Data.Bytes())}
+			for j := range msg.Packet.Children[1].Children[1].Children[i].Children[1].Children {
+				rattribute.vals = append(rattribute.vals, AttributeValue(msg.Packet.Children[1].Children[1].Children[i].Children[1].Children[j].Data.Bytes()))
+			}
+			r.protocolOp.attributes = append(r.protocolOp.attributes, rattribute)
+		}
+		return r, nil
+
+	case ApplicationModifyRequest:
+		var r ModifyRequest
+		r.message = mm
+		r.protocolOp.object = LDAPDN(msg.Packet.Children[1].Children[0].Data.Bytes())
+		for i := range msg.Packet.Children[1].Children[1].Children {
+			operation := int(msg.Packet.Children[1].Children[1].Children[i].Children[0].Value.(uint64))
+			attributeName := msg.Packet.Children[1].Children[1].Children[i].Children[1].Children[0].Value.(string)
+			modifyRequestChange := modifyRequestChange{operation: operation}
+			rattribute := PartialAttribute{type_: AttributeDescription(attributeName)}
+			for j := range msg.Packet.Children[1].Children[1].Children[i].Children[1].Children[1].Children {
+				value := msg.Packet.Children[1].Children[1].Children[i].Children[1].Children[1].Children[j].Value.(string)
+				rattribute.vals = append(rattribute.vals, AttributeValue(value))
+			}
+			modifyRequestChange.modification = rattribute
+			r.protocolOp.changes = append(r.protocolOp.changes, modifyRequestChange)
+		}
+
+		return r, nil
+
+	case ApplicationDelRequest:
+		var r DeleteRequest
+		r.message = mm
+		r.protocolOp = LDAPDN(msg.Packet.Children[1].Data.Bytes())
+		return r, nil
+
+	case ApplicationExtendedRequest:
+		var r ExtendedRequest
+		r.message = mm
+		r.protocolOp.requestName = LDAPOID(msg.Packet.Children[1].Children[0].Data.Bytes())
+		if len(msg.Packet.Children[1].Children) > 1 {
+			r.protocolOp.requestValue = msg.Packet.Children[1].Children[1].Data.Bytes()
+		}
+
+		return r, nil
+
+	case ApplicationAbandonRequest:
 		var r AbandonRequest
 		r.message = mm
 		r.setIDToAbandon(int(msg.Packet.Children[1].Value.(uint64)))
 		return r, nil
+
+	default:
+		return mm, errors.New("unknow ldap operation")
 	}
 
-	return mm, errors.New("unknow ldap operation")
 }
 
 func decompileFilter(packet *ber.Packet) (ret string, err error) {

@@ -1,25 +1,67 @@
 package ldapserver
 
-// request is the interface implemented by each ldap request (BinRequest, SearchRequest, ...) struct
-type request interface {
-	getMessageID() int
-	String() string
-	getProtocolOp() protocolOp
-	abort()
+type OCTETSTRING string
+
+// LDAPOID is a notational convenience to indicate that the
+// permitted value of this string is a (UTF-8 encoded) dotted-decimal
+// representation of an OBJECT IDENTIFIER.  Although an LDAPOID is
+type LDAPOID string
+
+// LDAPDN is defined to be the representation of a Distinguished Name
+// (DN) after encoding according to the specification
+type LDAPDN string
+
+// respectively, and have the same single octet UTF-8 encoding.  Other
+// Unicode characters have a multiple octet UTF-8 encoding.
+type LDAPString string
+
+//
+//        AttributeDescription ::= LDAPString
+//                                -- Constrained to <attributedescription>
+//                                -- [RFC4512]
+type AttributeDescription LDAPString
+
+//        AttributeValue ::= OCTET STRING
+type AttributeValue OCTETSTRING
+
+//
+//        PartialAttribute ::= SEQUENCE {
+//             type       AttributeDescription,
+//             vals       SET OF value AttributeValue }
+type PartialAttribute struct {
+	type_ AttributeDescription
+	vals  []AttributeValue
 }
 
-// response is the interface implemented by each ldap response (BinResponse, SearchResponse, SearchEntryResult,...) struct
-type response interface {
+func (p *PartialAttribute) GetDescription() AttributeDescription {
+	return p.type_
+}
+func (p *PartialAttribute) GetValues() []AttributeValue {
+	return p.vals
 }
 
-// ldapResult is the construct used in LDAP protocol to return
-// success or failure indications from servers to clients.  To various
-// requests, servers will return responses containing the elements found
-// in LDAPResult to indicate the final status of the protocol operation
-// request.
-type ldapResult struct {
-	ResultCode        int
-	MatchedDN         LDAPDN
-	DiagnosticMessage string
-	referral          interface{}
+//
+//        PartialAttributeList ::= SEQUENCE OF
+//                             partialAttribute PartialAttribute
+type PartialAttributeList []PartialAttribute
+
+func (l *PartialAttributeList) add(p PartialAttribute) {
+	*l = append(*l, p)
+}
+
+//
+//        Attribute ::= PartialAttribute(WITH COMPONENTS {
+//             ...,
+//             vals (SIZE(1..MAX))})
+type Attribute PartialAttribute
+
+//
+//        AttributeList ::= SEQUENCE OF attribute Attribute
+type AttributeList []Attribute
+
+func (p *Attribute) GetDescription() AttributeDescription {
+	return p.type_
+}
+func (p *Attribute) GetValues() []AttributeValue {
+	return p.vals
 }
