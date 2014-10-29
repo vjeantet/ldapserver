@@ -1,8 +1,5 @@
 package ldapserver
 
-// TODO : bellow handler should be a c *client func() to acces client (usefull for unbind
-// operation or cancelExtended operation)
-
 // handleBindRequest is the default handler for BindRequests, It always
 // returns a Success
 // use Server.SetBindHandler() to implement a custom handler
