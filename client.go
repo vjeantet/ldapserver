@@ -131,7 +131,7 @@ func (c *client) close() {
 	// signals to all currently running request processor to stop
 	for messageID, request := range c.requestList {
 		log.Printf("Client [%d] sent abandon signal to request[messageID = %d]", c.Numero, messageID)
-		request.abort()
+		go request.abort()
 	}
 
 	// wait for all request processor to end
