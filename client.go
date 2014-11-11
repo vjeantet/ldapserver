@@ -227,6 +227,14 @@ func (c *client) ProcessRequestMessage(request request) {
 		var res = ExtendedResponse{request: &req}
 		c.srv.ExtendedHandler(res, &req)
 
+	case CompareRequest:
+		var req = request.(CompareRequest)
+		req.out = c.chanOut
+		req.Done = make(chan bool)
+		c.requestList[request.getMessageID()] = &req
+		var res = CompareResponse{request: &req}
+		c.srv.CompareHandler(res, &req)
+
 	default:
 		//TODO: send a protocolErrorResponse
 		log.Printf("WARNING : unexpected type %V", v)

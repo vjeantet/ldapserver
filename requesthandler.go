@@ -40,3 +40,9 @@ func handleExtendedRequest(w ExtendedResponse, r *ExtendedRequest) {
 	w.ResultCode = LDAPResultOperationsError
 	w.Send()
 }
+
+func handleCompareRequest(w CompareResponse, r *CompareRequest) {
+	w.ResultCode = LDAPResultOperationsError
+	w.Send()
+	return
+}

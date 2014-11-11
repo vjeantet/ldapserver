@@ -37,6 +37,13 @@ type Server struct {
 
 	// ExtendedHandler called on delete request
 	ExtendedHandler func(ExtendedResponse, *ExtendedRequest)
+
+	// CompareHandler called on compare request
+	CompareHandler func(CompareResponse, *CompareRequest)
+}
+
+func (s *Server) SetCompareHandler(fn func(CompareResponse, *CompareRequest)) {
+	s.CompareHandler = fn
 }
 
 func (s *Server) SetModifyHandler(fn func(ModifyResponse, *ModifyRequest)) {
@@ -152,6 +159,11 @@ func (s *Server) serve(ln *net.TCPListener) error {
 	// When no ExtendedHandler is set, use the default one to return an OperationError
 	if s.ExtendedHandler == nil {
 		s.ExtendedHandler = handleExtendedRequest
+	}
+
+	// When no CompareHandler is set, use the default one to return an OperationError
+	if s.CompareHandler == nil {
+		s.CompareHandler = handleCompareRequest
 	}
 
 	s.chDone = make(chan bool)

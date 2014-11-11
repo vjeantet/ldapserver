@@ -112,6 +112,14 @@ func (msg *messagePacket) getRequestMessage() (request, error) {
 		r.setIDToAbandon(int(msg.Packet.Children[1].Value.(uint64)))
 		return r, nil
 
+	case ApplicationCompareRequest:
+		var r CompareRequest
+		r.message = mm
+		r.protocolOp.entry = LDAPDN(msg.Packet.Children[1].Children[0].Value.(string))
+		r.protocolOp.ava = AttributeValueAssertion{
+			attributeDesc:  AttributeDescription(msg.Packet.Children[1].Children[1].Children[0].Value.(string)),
+			assertionValue: AssertionValue(msg.Packet.Children[1].Children[1].Children[1].Value.(string))}
+		return r, nil
 	default:
 		return mm, errors.New(fmt.Sprintf("unknow ldap operation [operation=%d]", msg.getOperation()))
 	}
@@ -294,6 +302,16 @@ func newMessagePacket(lr response) *ber.Packet {
 		packet.AppendChild(packet2)
 		return packet
 
+	case CompareResponse:
+		var res = lr.(CompareResponse)
+		packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
+		packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(res.request.getMessageID()), "MessageID"))
+		packet2 := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationCompareResponse, nil, "Compare response")
+		packet2.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagEnumerated, uint64(res.ResultCode), "ResultCode"))
+		packet2.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, string(res.MatchedDN), "MatchedDN"))
+		packet2.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, res.DiagnosticMessage, "DiagnosticMessage"))
+		packet.AppendChild(packet2)
+		return packet
 	default:
 		log.Printf("newMessagePacket :: unexpected type %T", v)
 	}

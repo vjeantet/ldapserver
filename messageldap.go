@@ -65,3 +65,24 @@ func (p *Attribute) GetDescription() AttributeDescription {
 func (p *Attribute) GetValues() []AttributeValue {
 	return p.vals
 }
+
+//
+//        AssertionValue ::= OCTET STRING
+type AssertionValue OCTETSTRING
+
+//
+//        AttributeValueAssertion ::= SEQUENCE {
+//             attributeDesc   AttributeDescription,
+//             assertionValue  AssertionValue }
+type AttributeValueAssertion struct {
+	attributeDesc  AttributeDescription
+	assertionValue AssertionValue
+}
+
+func (a *AttributeValueAssertion) GetName() string {
+	return string(a.attributeDesc)
+}
+
+func (a *AttributeValueAssertion) GetValue() string {
+	return string(a.assertionValue)
+}

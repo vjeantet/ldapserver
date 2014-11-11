@@ -31,6 +31,8 @@ func main() {
 	//TODO: Set Extended request Handler
 	server.SetExtendedHandler(handleExtended)
 
+	server.SetCompareHandler(handleCompare)
+
 	go server.ListenAndServe()
 
 	// Handle SIGINT and SIGTERM.
@@ -52,6 +54,25 @@ func handleBind(w ldap.BindResponse, r *ldap.BindRequest) {
 	log.Printf("Bind failed User=%s, Pass=%s", string(r.GetLogin()), string(r.GetPassword()))
 	w.ResultCode = ldap.LDAPResultInvalidCredentials
 	w.DiagnosticMessage = "login / mot de passe invalide"
+	w.Send()
+}
+
+// The resultCode is set to compareTrue, compareFalse, or an appropriate
+// error.  compareTrue indicates that the assertion value in the ava
+// Comparerequest field matches a value of the attribute or subtype according to the
+// attribute's EQUALITY matching rule.  compareFalse indicates that the
+// assertion value in the ava field and the values of the attribute or
+// subtype did not match.  Other result codes indicate either that the
+// result of the comparison was Undefined, or that
+// some error occurred.
+func handleCompare(w ldap.CompareResponse, r *ldap.CompareRequest) {
+	log.Printf("Comparing entry: %s", r.GetEntry())
+	//attributes values
+	log.Printf(" attribute name to compare : \"%s\"", r.GetAttributeValueAssertion().GetName())
+	log.Printf(" attribute value expected : \"%s\"", r.GetAttributeValueAssertion().GetValue())
+
+	w.ResultCode = ldap.LDAPResultCompareTrue
+	//w.ResultCode = ldap.LDAPResultCompareFalse
 	w.Send()
 }
 
