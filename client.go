@@ -127,6 +127,8 @@ func (c *client) close() {
 	// stop reading from client
 	c.rwc.SetReadDeadline(time.Now().Add(time.Second))
 
+	// TODO: Send a Disconnection notification
+
 	// signals to all currently running request processor to stop
 	for messageID, request := range c.requestList {
 		log.Printf("Client [%d] sent abandon signal to request[messageID = %d]", c.Numero, messageID)

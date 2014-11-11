@@ -19,16 +19,16 @@ func main() {
 	//Set Bind request Handler
 	server.SetBindHandler(handleBind)
 
-	//TODO: Set Add request Handler
+	//Set Add request Handler
 	server.SetAddHandler(handleAdd)
 
-	//TODO: Set Modify request Handler
+	//Set Modify request Handler
 	server.SetModifyHandler(handleModify)
 
-	//TODO: Set Delete request Handler
+	//Set Delete request Handler
 	server.SetDeleteHandler(handleDelete)
 
-	//TODO: Set Extended request Handler
+	//Set Extended request Handler
 	server.SetExtendedHandler(handleExtended)
 
 	server.SetCompareHandler(handleCompare)

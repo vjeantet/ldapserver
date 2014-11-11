@@ -117,7 +117,6 @@ func (s *Server) ListenAndServe() error {
 // terminate the session by ceasing communication and closing the
 // transport connection.
 // In either case, when the LDAP session is terminated.
-// TODO: Send a Disconnection notification
 func (s *Server) Stop() {
 	close(s.chDone)
 	log.Print("waiting for clients shutdown...")
