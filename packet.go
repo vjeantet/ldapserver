@@ -3,6 +3,7 @@ package ldapserver
 import (
 	"bufio"
 	"errors"
+	"fmt"
 	"log"
 
 	ber "github.com/vjeantet/asn1-ber"
@@ -112,7 +113,7 @@ func (msg *messagePacket) getRequestMessage() (request, error) {
 		return r, nil
 
 	default:
-		return mm, errors.New("unknow ldap operation")
+		return mm, errors.New(fmt.Sprintf("unknow ldap operation [operation=%d]", msg.getOperation()))
 	}
 
 }
