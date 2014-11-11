@@ -95,7 +95,6 @@ func (c *client) serve() {
 		request, err = messagePacket.getRequestMessage()
 		if err != nil {
 			log.Printf("Error : %s", err.Error())
-			return
 		}
 		log.Printf("<<< %d - %s - hex=%x", c.Numero, reflect.TypeOf(request).Name(), messagePacket.Packet.Bytes())
 
@@ -229,6 +228,7 @@ func (c *client) ProcessRequestMessage(request request) {
 		c.srv.ExtendedHandler(res, &req)
 
 	default:
+		//TODO: send a protocolErrorResponse
 		log.Printf("WARNING : unexpected type %V", v)
 	}
 
