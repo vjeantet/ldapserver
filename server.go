@@ -10,7 +10,7 @@ import (
 
 // Server is an LDAP server.
 type Server struct {
-	Addr         string        // TCP address to listen on, ":389" if empty
+	Listener     net.Listener
 	ReadTimeout  time.Duration // optional read timeout
 	WriteTimeout time.Duration // optional write timeout
 	wg           sync.WaitGroup
@@ -87,46 +87,29 @@ func (s *Server) SetSearchHandler(fn func(SearchResponse, *SearchRequest)) {
 // ListenAndServe listens on the TCP network address s.Addr and then
 // calls Serve to handle requests on incoming connections.  If
 // s.Addr is blank, ":389" is used.
-func (s *Server) ListenAndServe() error {
-	addr := s.Addr
+func (s *Server) ListenAndServe(addr string, options ...func(*Server)) error {
+
 	if addr == "" {
 		addr = ":389"
 	}
 
-	laddr, err := net.ResolveTCPAddr("tcp", addr)
-	if nil != err {
-		log.Fatalln(err)
-	}
-
-	ln, e := net.ListenTCP("tcp", laddr)
+	var e error
+	s.Listener, e = net.Listen("tcp", addr)
 	if e != nil {
 		return e
 	}
+	log.Printf("Listening on %s\n", addr)
 
-	log.Printf("Listening on %s", addr)
-	return s.serve(ln)
-}
+	for _, option := range options {
+		option(s)
+	}
 
-// Termination of the LDAP session is initiated by the server sending a
-// Notice of Disconnection.  In this case, each
-// protocol peer gracefully terminates the LDAP session by ceasing
-// exchanges at the LDAP message layer, tearing down any SASL layer,
-// tearing down any TLS layer, and closing the transport connection.
-// A protocol peer may determine that the continuation of any
-// communication would be pernicious, and in this case, it may abruptly
-// terminate the session by ceasing communication and closing the
-// transport connection.
-// In either case, when the LDAP session is terminated.
-func (s *Server) Stop() {
-	close(s.chDone)
-	log.Print("waiting for clients shutdown...")
-	s.wg.Wait()
-	log.Print("all client connections closed")
+	return s.serve()
 }
 
 // Handle requests messages on the ln listener
-func (s *Server) serve(ln *net.TCPListener) error {
-	defer ln.Close()
+func (s *Server) serve() error {
+	defer s.Listener.Close()
 
 	// When no BindHandler is set, use the default one to return OK to all
 	// BinRequest
@@ -167,25 +150,27 @@ func (s *Server) serve(ln *net.TCPListener) error {
 
 	s.chDone = make(chan bool)
 	i := 0
+
 	for {
 		select {
 		case <-s.chDone:
 			log.Print("Stopping server")
-			ln.Close()
+			s.Listener.Close()
 			return nil
 		default:
 		}
 
-		ln.SetDeadline(time.Now().Add(1e9))
-		rw, err := ln.AcceptTCP()
+		rw, err := s.Listener.Accept()
+		rw.SetDeadline(time.Now().Add(1e9))
 		if nil != err {
 			if opErr, ok := err.(*net.OpError); ok && opErr.Timeout() {
 				continue
 			}
 			log.Println(err)
 		}
-		//rw.SetDeadline(time.Now().Add(1e9))
+
 		cli, err := s.newClient(rw)
+
 		if err != nil {
 			continue
 		}
@@ -210,4 +195,21 @@ func (s *Server) newClient(rwc net.Conn) (c *client, err error) {
 		bw:  bufio.NewWriter(rwc),
 	}
 	return c, nil
+}
+
+// Termination of the LDAP session is initiated by the server sending a
+// Notice of Disconnection.  In this case, each
+// protocol peer gracefully terminates the LDAP session by ceasing
+// exchanges at the LDAP message layer, tearing down any SASL layer,
+// tearing down any TLS layer, and closing the transport connection.
+// A protocol peer may determine that the continuation of any
+// communication would be pernicious, and in this case, it may abruptly
+// terminate the session by ceasing communication and closing the
+// transport connection.
+// In either case, when the LDAP session is terminated.
+func (s *Server) Stop() {
+	close(s.chDone)
+	log.Print("waiting for clients shutdown...")
+	s.wg.Wait()
+	log.Print("all client connections closed")
 }
