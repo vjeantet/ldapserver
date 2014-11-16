@@ -44,6 +44,11 @@ type Server struct {
 	CompareHandler func(CompareResponse, *CompareRequest)
 }
 
+//NewServer return a LDAP Server
+func NewServer() *Server {
+	return &Server{}
+}
+
 func (s *Server) SetCompareHandler(fn func(CompareResponse, *CompareRequest)) {
 	s.CompareHandler = fn
 }

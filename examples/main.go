@@ -12,7 +12,7 @@ import (
 
 func main() {
 	//Create a new LDAP Server
-	server := ldap.Server{}
+	server := ldap.NewServer()
 
 	//Set Search request Handler
 	server.SetSearchHandler(handleSearch)
@@ -35,22 +35,22 @@ func main() {
 	//Set Compare request Handler
 	server.SetCompareHandler(handleCompare)
 
+	// listen on 10389
+	//go server.ListenAndServe(":10389")
+
 	tlsConfiguration := func(s *ldap.Server) {
 		config, _ := getTLSconfig()
 		s.TLSconfig = config
 	}
+
+	//listen on port 10389, with TLS support (StartTLS)
+	go server.ListenAndServe(":10389", tlsConfiguration)
 
 	// LDAPS SSL
 	// secureConn := func(s *ldap.Server) {
 	// 	s.Listener = tls.NewListener(s.Listener, s.TLSconfig)
 	// }
 	// go server.ListenAndServe(":636", tlsConfiguration, secureConn)
-
-	//listen on port 389, with TLS support (StartTLS)
-	go server.ListenAndServe(":389", tlsConfiguration)
-
-	// listen on 389
-	//go server.ListenAndServe(":389")
 
 	// When CTRL+C, SIGINT and SIGTERM signal occurs
 	// Then stop server gracefully
