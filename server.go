@@ -2,6 +2,7 @@ package ldapserver
 
 import (
 	"bufio"
+	"crypto/tls"
 	"log"
 	"net"
 	"sync"
@@ -11,10 +12,11 @@ import (
 // Server is an LDAP server.
 type Server struct {
 	Listener     net.Listener
-	ReadTimeout  time.Duration // optional read timeout
-	WriteTimeout time.Duration // optional write timeout
-	wg           sync.WaitGroup
-	chDone       chan bool // Channel Done, value => shutdown
+	ReadTimeout  time.Duration  // optional read timeout
+	WriteTimeout time.Duration  // optional write timeout
+	wg           sync.WaitGroup // group of goroutines (1 by client)
+	chDone       chan bool      // Channel Done, value => shutdown
+	TLSconfig    *tls.Config    // TLSconfig is used for SSL/TLS connection
 
 	// OnNewConnection, if non-nil, is called on new connections.
 	// If it returns non-nil, the connection is closed.

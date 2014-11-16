@@ -111,4 +111,5 @@ const (
 const (
 	NoticeOfDisconnection LDAPOID = "1.3.6.1.4.1.1466.2003"
 	NoticeOfCancel        LDAPOID = "1.3.6.1.1.8"
+	NoticeOfStartTLS      LDAPOID = "1.3.6.1.4.1.1466.20037"
 )

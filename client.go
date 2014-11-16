@@ -2,6 +2,8 @@ package ldapserver
 
 import (
 	"bufio"
+	"crypto/tls"
+	"fmt"
 	"log"
 	"net"
 	"reflect"
@@ -79,6 +81,7 @@ func (c *client) serve() {
 
 		//Read client input as a ASN1/BER binary message
 		messagePacket, err := readMessagePacket(c.br)
+
 		if err != nil {
 			log.Printf("Error readMessagePacket: %s", err)
 			return
@@ -106,11 +109,23 @@ func (c *client) serve() {
 		// When message is an UnbindRequest, stop serving
 		if _, ok := request.(UnbindRequest); ok {
 			return
-		} else {
-
-			c.wg.Add(1)
-			go c.ProcessRequestMessage(request)
 		}
+
+		// If client requests a startTls, do not handle it in a
+		// goroutine, connection has to remain free until TLS is OK
+		// @see RFC https://tools.ietf.org/html/rfc4511#section-4.14.1
+		if req, ok := request.(ExtendedRequest); ok {
+			if req.GetResponseName() == NoticeOfStartTLS {
+				c.wg.Add(1)
+				c.ProcessRequestMessage(request)
+				continue
+			}
+		}
+
+		// TODO: go/non go routine choice should be done in the ProcessRequestMessage
+		// not in the client.serve func
+		c.wg.Add(1)
+		go c.ProcessRequestMessage(request)
 	}
 
 }
@@ -227,7 +242,27 @@ func (c *client) ProcessRequestMessage(request request) {
 		req.Done = make(chan bool)
 		c.requestList[request.getMessageID()] = &req
 		var res = ExtendedResponse{request: &req}
-		c.srv.ExtendedHandler(res, &req)
+		if req.GetResponseName() == NoticeOfStartTLS {
+			tlsConn := tls.Server(c.rwc, c.srv.TLSconfig)
+			res.ResultCode = LDAPResultSuccess
+			res.responseName = NoticeOfStartTLS
+			c.writeLdapResult(res)
+
+			if err := tlsConn.Handshake(); err != nil {
+				log.Printf("StartTLS Handshake error %v", err)
+				res.DiagnosticMessage = fmt.Sprintf("StartTLS Handshake error : \"%s\"", err.Error())
+				res.ResultCode = LDAPResultOperationsError
+				c.writeLdapResult(res)
+				return
+			}
+
+			c.rwc = tlsConn
+			c.br = bufio.NewReader(c.rwc)
+			c.bw = bufio.NewWriter(c.rwc)
+			log.Println("StartTLS OK")
+		} else {
+			c.srv.ExtendedHandler(res, &req)
+		}
 
 	case CompareRequest:
 		var req = request.(CompareRequest)

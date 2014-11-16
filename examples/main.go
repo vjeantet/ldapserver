@@ -2,7 +2,6 @@ package main
 
 import (
 	"crypto/tls"
-	"fmt"
 	"log"
 	"os"
 	"os/signal"
@@ -33,31 +32,50 @@ func main() {
 	//Set Extended request Handler
 	server.SetExtendedHandler(handleExtended)
 
+	//Set Compare request Handler
 	server.SetCompareHandler(handleCompare)
 
-	tls := func(s *ldap.Server) {
-		cert, err := tls.X509KeyPair(localhostCert, localhostKey)
-		if err != nil {
-			panic(fmt.Sprintf("NewTLSServer: %v", err))
-		}
-
-		config := &tls.Config{
-			MinVersion:   tls.VersionTLS10,
-			MaxVersion:   tls.VersionTLS12,
-			Certificates: []tls.Certificate{cert},
-		}
-		s.Listener = tls.NewListener(s.Listener, config)
+	tlsConfiguration := func(s *ldap.Server) {
+		config, _ := getTLSconfig()
+		s.TLSconfig = config
 	}
 
-	go server.ListenAndServe(":1389", tls)
+	// LDAPS SSL
+	// secureConn := func(s *ldap.Server) {
+	// 	s.Listener = tls.NewListener(s.Listener, s.TLSconfig)
+	// }
+	// go server.ListenAndServe(":636", tlsConfiguration, secureConn)
 
-	// Handle SIGINT and SIGTERM.
+	//listen on port 389, with TLS support (StartTLS)
+	go server.ListenAndServe(":389", tlsConfiguration)
+
+	// listen on 389
+	//go server.ListenAndServe(":389")
+
+	// When CTRL+C, SIGINT and SIGTERM signal occurs
+	// Then stop server gracefully
 	ch := make(chan os.Signal)
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 	<-ch
 	close(ch)
 
 	server.Stop()
+}
+
+// getTLSconfig returns a tls configuration used
+// to build a TLSlistener for TLS or StartTLS
+func getTLSconfig() (*tls.Config, error) {
+	cert, err := tls.X509KeyPair(localhostCert, localhostKey)
+	if err != nil {
+		return &tls.Config{}, err
+	}
+
+	return &tls.Config{
+		MinVersion:   tls.VersionSSL30,
+		MaxVersion:   tls.VersionTLS12,
+		Certificates: []tls.Certificate{cert},
+		ServerName:   "127.0.0.1",
+	}, nil
 }
 
 func handleBind(w ldap.BindResponse, r *ldap.BindRequest) {
