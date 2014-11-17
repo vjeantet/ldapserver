@@ -14,26 +14,14 @@ func main() {
 	//Create a new LDAP Server
 	server := ldap.NewServer()
 
-	//Set Search request Handler
-	server.SetSearchHandler(handleSearch)
-
-	//Set Bind request Handler
-	server.SetBindHandler(handleBind)
-
-	//Set Add request Handler
-	server.SetAddHandler(handleAdd)
-
-	//Set Modify request Handler
-	server.SetModifyHandler(handleModify)
-
-	//Set Delete request Handler
-	server.SetDeleteHandler(handleDelete)
-
-	//Set Extended request Handler
-	server.SetExtendedHandler(handleExtended)
-
-	//Set Compare request Handler
-	server.SetCompareHandler(handleCompare)
+	server.Handler.SetBindFunc(handleBind)
+	server.Handler.SetCompareFunc(handleCompare)
+	server.Handler.SetAddFunc(handleAdd)
+	server.Handler.SetDeleteFunc(handleDelete)
+	server.Handler.SetModifyFunc(handleModify)
+	server.Handler.SetExtendedFunc(handleExtended)
+	server.Handler.SetSearchFunc(handleSearch)
+	//server.Handler.SetSearchFunc(handleSearch).BaseDn("*ou=Paris, dc=Ile de France, c=FR").Filter("objectclass=role")
 
 	// listen on 10389
 	//go server.ListenAndServe(":10389")

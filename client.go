@@ -175,14 +175,14 @@ func (c *client) ProcessRequestMessage(request request) {
 	defer c.wg.Done()
 	defer delete(c.requestList, request.getMessageID())
 
-	switch v := request.(type) {
+	switch request.(type) {
 	case BindRequest:
 		var req = request.(BindRequest)
 		req.out = c.chanOut
 		req.Done = make(chan bool)
 		c.requestList[request.getMessageID()] = &req
 		var res = BindResponse{request: &req}
-		c.srv.BindHandler(res, &req)
+		c.srv.Handler.bind(res, &req)
 
 	case SearchRequest:
 		var req = request.(SearchRequest)
@@ -191,13 +191,13 @@ func (c *client) ProcessRequestMessage(request request) {
 		c.requestList[request.getMessageID()] = &req
 
 		var res = SearchResponse{request: &req}
-		c.srv.SearchHandler(res, &req)
+		c.srv.Handler.search(res, &req)
 
 	case AbandonRequest:
 		var req = request.(AbandonRequest)
 		req.out = c.chanOut
 		req.Done = make(chan bool)
-		messageIDToAbandon := req.getMessageID()
+		messageIDToAbandon := req.getIDToAbandon()
 		c.requestList[request.getMessageID()] = &req
 
 		// retreive the request to abandon, and send a abort signal to it
@@ -213,7 +213,7 @@ func (c *client) ProcessRequestMessage(request request) {
 		c.requestList[request.getMessageID()] = &req
 
 		var res = AddResponse{request: &req}
-		c.srv.AddHandler(res, &req)
+		c.srv.Handler.add(res, &req)
 
 	case DeleteRequest:
 		var req = request.(DeleteRequest)
@@ -222,7 +222,7 @@ func (c *client) ProcessRequestMessage(request request) {
 		c.requestList[request.getMessageID()] = &req
 
 		var res = DeleteResponse{request: &req}
-		c.srv.DeleteHandler(res, &req)
+		c.srv.Handler.delete(res, &req)
 
 	case ModifyRequest:
 		var req = request.(ModifyRequest)
@@ -231,7 +231,7 @@ func (c *client) ProcessRequestMessage(request request) {
 		c.requestList[request.getMessageID()] = &req
 
 		var res = ModifyResponse{request: &req}
-		c.srv.ModifyHandler(res, &req)
+		c.srv.Handler.modify(res, &req)
 
 	case UnbindRequest:
 		log.Print("Unbind Request sould not be handled here")
@@ -261,7 +261,7 @@ func (c *client) ProcessRequestMessage(request request) {
 			c.bw = bufio.NewWriter(c.rwc)
 			log.Println("StartTLS OK")
 		} else {
-			c.srv.ExtendedHandler(res, &req)
+			c.srv.Handler.extended(res, &req)
 		}
 
 	case CompareRequest:
@@ -270,11 +270,10 @@ func (c *client) ProcessRequestMessage(request request) {
 		req.Done = make(chan bool)
 		c.requestList[request.getMessageID()] = &req
 		var res = CompareResponse{request: &req}
-		c.srv.CompareHandler(res, &req)
+		c.srv.Handler.compare(res, &req)
 
 	default:
-		//TODO: send a protocolErrorResponse
-		log.Printf("WARNING : unexpected type %V", v)
+		c.srv.Handler.unknow(&request)
 	}
 
 }
