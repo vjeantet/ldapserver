@@ -2,19 +2,16 @@ package ldapserver
 
 // AddRequest is a definition of the Add Operation
 type AddRequest struct {
-	message
-	protocolOp struct {
-		entry      LDAPDN
-		attributes AttributeList
-	}
+	entry      LDAPDN
+	attributes AttributeList
 }
 
 func (r *AddRequest) GetEntryDN() LDAPDN {
-	return r.protocolOp.entry
+	return r.entry
 }
 
 func (r *AddRequest) GetAttributes() AttributeList {
-	return r.protocolOp.attributes
+	return r.attributes
 
 }
 
@@ -23,9 +20,9 @@ type AddResponse struct {
 	request *AddRequest
 }
 
-func (r *AddResponse) Send() {
-	if r.request.out != nil {
-		r.request.out <- *r
-		r.request.wroteMessage++
-	}
+func NewAddResponse(messageID int, resultCode int) AddResponse {
+	r := AddResponse{}
+	r.MessageID = messageID
+	r.ResultCode = resultCode
+	return r
 }

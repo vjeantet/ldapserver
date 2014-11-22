@@ -24,12 +24,16 @@ type Server struct {
 
 	// Handler handle ldap message received by client
 	// it SHOULD "implement" RequestHandler interface
-	Handler RequestHandler
+	Handler Handler
 }
 
 //NewServer return a LDAP Server
 func NewServer() *Server {
-	return &Server{Handler: &DefaultHandler{}}
+	return &Server{}
+}
+
+func (s *Server) Handle(h Handler) {
+	s.Handler = h
 }
 
 // ListenAndServe listens on the TCP network address s.Addr and then

@@ -1,14 +1,17 @@
 package ldapserver
 
-import "fmt"
+import (
+	"fmt"
+	"reflect"
+)
 
 // request is the interface implemented by each ldap request (BinRequest, SearchRequest, ...) struct
-type request interface {
-	getMessageID() int
-	String() string
-	getProtocolOp() protocolOp
-	abort()
-}
+// type request interface {
+// 	getMessageID() int
+// 	String() string
+// 	getProtocolOp() protocolOp
+// 	abort()
+// }
 
 // response is the interface implemented by each ldap response (BinResponse, SearchResponse, SearchEntryResult,...) struct
 type response interface {
@@ -24,41 +27,76 @@ type ldapResult struct {
 	MatchedDN         LDAPDN
 	DiagnosticMessage string
 	referral          interface{}
+	MessageID         int
 }
 
-type protocolOp interface {
-	String() string
+func NewResponse(messageID int, resultCode int) ldapResult {
+	r := ldapResult{}
+	r.MessageID = messageID
+	r.ResultCode = resultCode
+	return r
 }
 
-type message struct {
+type ProtocolOp interface {
+}
+
+type Message struct {
+	Client       *client
 	wroteMessage int
-	messageID    int
-	protocolOp   protocolOp
+	MessageID    int
+	protocolOp   ProtocolOp
 	Controls     []interface{}
 	out          chan response
 	Done         chan bool
 }
 
-func (m message) getMessageID() int {
-	return m.messageID
+func (m *Message) String() string {
+	return fmt.Sprintf("MessageId=%d, %s", m.MessageID, reflect.TypeOf(m.protocolOp).Name)
 }
 
-func (m message) String() string {
-	return fmt.Sprintf("MessageId=%d, %s", m.messageID, m.protocolOp.String())
-}
-
-func (m message) getProtocolOp() protocolOp {
-	return m.protocolOp
-}
-
-// abort close the Done channel, to notify handler's user function to stop any
+// Abandon close the Done channel, to notify handler's user function to stop any
 // running process
-func (m message) abort() {
+func (m *Message) Abandon() {
 	close(m.Done)
 }
 
 //GetDoneChannel return a channel, which indicate the the request should be
 //aborted quickly, because the client abandonned the request, the server qui quitting, ...
-func (m *message) GetDoneChannel() chan bool {
+func (m *Message) GetDoneChannel() chan bool {
 	return m.Done
+}
+
+func (m *Message) GetProtocolOp() ProtocolOp {
+	return m.protocolOp
+}
+
+func (m *Message) GetAbandonRequest() AbandonRequest {
+	return m.protocolOp.(AbandonRequest)
+}
+func (m *Message) GetSearchRequest() SearchRequest {
+	return m.protocolOp.(SearchRequest)
+}
+
+func (m *Message) GetBindRequest() BindRequest {
+	return m.protocolOp.(BindRequest)
+}
+
+func (m *Message) GetAddRequest() AddRequest {
+	return m.protocolOp.(AddRequest)
+}
+
+func (m *Message) GetDeleteRequest() DeleteRequest {
+	return m.protocolOp.(DeleteRequest)
+}
+
+func (m *Message) GetModifyRequest() ModifyRequest {
+	return m.protocolOp.(ModifyRequest)
+}
+
+func (m *Message) GetCompareRequest() CompareRequest {
+	return m.protocolOp.(CompareRequest)
+}
+
+func (m *Message) GetExtendedRequest() ExtendedRequest {
+	return m.protocolOp.(ExtendedRequest)
 }

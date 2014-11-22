@@ -5,7 +5,4 @@ package ldapserver
 // the name implies.  The naming of these operations are historical.
 // The Unbind operation should be thought of as the "quit" operation.
 type UnbindRequest struct {
-	message
-	protocolOp struct {
-	}
 }

@@ -1,14 +1,11 @@
 package ldapserver
 
 // DeleteRequest is a definition of the Delete Operation
-type DeleteRequest struct {
-	message
-	protocolOp LDAPDN
-}
+type DeleteRequest LDAPDN
 
 // GetDN returns the entry's DN to delete
 func (r *DeleteRequest) GetEntryDN() LDAPDN {
-	return r.protocolOp
+	return LDAPDN(*r)
 }
 
 type DeleteResponse struct {
@@ -16,9 +13,9 @@ type DeleteResponse struct {
 	request *DeleteRequest
 }
 
-func (r *DeleteResponse) Send() {
-	if r.request.out != nil {
-		r.request.out <- *r
-		r.request.wroteMessage++
-	}
+func NewDeleteResponse(messageID int, resultCode int) DeleteResponse {
+	r := DeleteResponse{}
+	r.MessageID = messageID
+	r.ResultCode = resultCode
+	return r
 }

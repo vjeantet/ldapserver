@@ -1,62 +1,34 @@
 package ldapserver
 
-import "fmt"
-
 // a BindRequest struct
 type BindRequest struct {
-	message
-	protocolOp struct {
-		Version  int
-		Login    []byte
-		Password []byte
-	}
-}
-
-func (r *BindRequest) SetLogin(login []byte) {
-	r.protocolOp.Login = login
+	Version  int
+	Login    []byte
+	Password []byte
 }
 
 func (r *BindRequest) GetLogin() []byte {
-	return r.protocolOp.Login
-}
-
-func (r *BindRequest) SetVersion(version int) {
-	r.protocolOp.Version = version
-}
-
-func (r *BindRequest) SetPassword(password []byte) {
-	r.protocolOp.Password = password
+	return r.Login
 }
 
 func (r *BindRequest) GetPassword() []byte {
-	return r.protocolOp.Password
-}
-
-func (r BindRequest) String() string {
-	var s string
-
-	s = fmt.Sprintf("Login:%s, Password:%s",
-		r.GetLogin(),
-		r.GetPassword())
-
-	return s
+	return r.Password
 }
 
 // BindResponse consists simply of an indication from the server of the
 // status of the client's request for authentication
 type BindResponse struct {
 	ldapResult
-	request         *BindRequest
 	serverSaslCreds string
 }
 
-func (r BindResponse) String() string {
-	return ""
+func NewBindResponse(messageID int, resultCode int) BindResponse {
+	r := BindResponse{}
+	r.MessageID = messageID
+	r.ResultCode = resultCode
+	return r
 }
 
-func (r *BindResponse) Send() {
-	if r.request.out != nil {
-		r.request.out <- *r
-		r.request.wroteMessage++
-	}
+func (r *BindResponse) Bytes() []byte {
+	return newMessagePacket(r).Bytes()
 }

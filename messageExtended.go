@@ -6,19 +6,16 @@ package ldapserver
 // syntaxes and semantics.  These may be defined in RFCs or be private to
 // particular implementations.
 type ExtendedRequest struct {
-	message
-	protocolOp struct {
-		requestName  LDAPOID
-		requestValue []byte
-	}
+	requestName  LDAPOID
+	requestValue []byte
 }
 
 func (r *ExtendedRequest) GetResponseName() LDAPOID {
-	return r.protocolOp.requestName
+	return r.requestName
 }
 
 func (r *ExtendedRequest) GetResponseValue() []byte {
-	return r.protocolOp.requestValue
+	return r.requestValue
 }
 
 // ExtendedResponse operation allows additional operations to be defined for
@@ -30,13 +27,13 @@ func (r *ExtendedRequest) GetResponseValue() []byte {
 type ExtendedResponse struct {
 	ldapResult
 	request       *ExtendedRequest
-	responseName  LDAPOID
-	responseValue string
+	ResponseName  LDAPOID
+	ResponseValue string
 }
 
-func (r *ExtendedResponse) Send() {
-	if r.request.out != nil {
-		r.request.out <- *r
-		r.request.wroteMessage++
-	}
+func NewExtendedResponse(messageID int, resultCode int) ExtendedResponse {
+	r := ExtendedResponse{}
+	r.MessageID = messageID
+	r.ResultCode = resultCode
+	return r
 }

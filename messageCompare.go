@@ -1,19 +1,16 @@
 package ldapserver
 
 type CompareRequest struct {
-	message
-	protocolOp struct {
-		entry LDAPDN
-		ava   AttributeValueAssertion
-	}
+	entry LDAPDN
+	ava   AttributeValueAssertion
 }
 
 func (r *CompareRequest) GetEntry() LDAPDN {
-	return r.protocolOp.entry
+	return r.entry
 }
 
 func (r *CompareRequest) GetAttributeValueAssertion() *AttributeValueAssertion {
-	return &r.protocolOp.ava
+	return &r.ava
 }
 
 type CompareResponse struct {
@@ -21,9 +18,9 @@ type CompareResponse struct {
 	request *CompareRequest
 }
 
-func (r *CompareResponse) Send() {
-	if r.request.out != nil {
-		r.request.out <- *r
-		r.request.wroteMessage++
-	}
+func NewCompareResponse(messageID int, resultCode int) CompareResponse {
+	r := CompareResponse{}
+	r.MessageID = messageID
+	r.ResultCode = resultCode
+	return r
 }

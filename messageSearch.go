@@ -3,51 +3,45 @@ package ldapserver
 // SearchRequest is a definition of the Search Operation
 // baseObject - The name of the base object entry (or possibly the root) relative to which the Search is to be performed
 type SearchRequest struct {
-	message
-	protocolOp struct {
-		BaseObject   []byte
-		Scope        int
-		DerefAliases int
-		SizeLimit    int
-		TimeLimit    int
-		TypesOnly    bool
-		Attributes   [][]byte
-		Filter       string
-	}
-	searchResultDoneSent      bool
-	searchResultEntrySent     int
-	SearchResultReferenceSent int
+	BaseObject   []byte
+	Scope        int
+	DerefAliases int
+	SizeLimit    int
+	TimeLimit    int
+	TypesOnly    bool
+	Attributes   [][]byte
+	Filter       string
 }
 
 func (s *SearchRequest) GetTypesOnly() bool {
-	return s.protocolOp.TypesOnly
+	return s.TypesOnly
 }
 
 func (s *SearchRequest) GetAttributes() [][]byte {
-	return s.protocolOp.Attributes
+	return s.Attributes
 }
 func (s *SearchRequest) GetFilter() string {
-	return s.protocolOp.Filter
+	return s.Filter
 }
 func (s *SearchRequest) GetBaseObject() []byte {
-	return s.protocolOp.BaseObject
+	return s.BaseObject
 }
 func (s *SearchRequest) GetScope() int {
-	return s.protocolOp.Scope
+	return s.Scope
 }
 func (s *SearchRequest) GetDerefAliases() int {
-	return s.protocolOp.DerefAliases
+	return s.DerefAliases
 }
 func (s *SearchRequest) GetSizeLimit() int {
-	return s.protocolOp.SizeLimit
+	return s.SizeLimit
 }
 func (s *SearchRequest) GetTimeLimit() int {
-	return s.protocolOp.TimeLimit
+	return s.TimeLimit
 }
 
 // SearchResultEntry represents an entry found during the Search
 type SearchResultEntry struct {
-	request    *SearchRequest
+	MessageID  int
 	dN         string
 	attributes PartialAttributeList
 }
@@ -63,30 +57,19 @@ func (e *SearchResultEntry) AddAttribute(name AttributeDescription, values ...At
 
 type SearchResponse struct {
 	ldapResult
-	request   *SearchRequest
 	referrals []string
 	//Controls []Control
 }
 
-func (r *SearchResponse) SendEntry(entry *SearchResultEntry) {
-	entry.request = r.request
-	if r.request.out != nil {
-		r.request.out <- *entry //NOTE : Why do i need to * a *SearchResultEntry ?
-		r.request.searchResultEntrySent++
-		r.request.wroteMessage++
-	}
+func NewSearchResultDoneResponse(messageID int, resultCode int) SearchResponse {
+	r := SearchResponse{}
+	r.MessageID = messageID
+	r.ResultCode = resultCode
+	return r
 }
 
-func (r *SearchResponse) SendResultDone(ldapCode int, message string) {
-	r.ResultCode = ldapCode
-	r.DiagnosticMessage = message
-	r.Send()
-	r.request.searchResultDoneSent = true
-}
-
-func (r *SearchResponse) Send() {
-	if r.request.out != nil {
-		r.request.out <- *r
-		r.request.wroteMessage++
-	}
+func NewSearchResultEntry(messageID int) SearchResultEntry {
+	r := SearchResultEntry{}
+	r.MessageID = messageID
+	return r
 }

@@ -2,8 +2,6 @@ package ldapserver
 
 import (
 	"bufio"
-	"crypto/tls"
-	"fmt"
 	"log"
 	"net"
 	"reflect"
@@ -20,7 +18,24 @@ type client struct {
 	chanOut     chan response
 	wg          sync.WaitGroup
 	closing     bool
-	requestList map[int]request
+	requestList map[int]Message
+}
+
+func (c *client) GetConn() net.Conn {
+	return c.rwc
+}
+
+func (c *client) SetConn(conn net.Conn) {
+	c.rwc = conn
+	c.br = bufio.NewReader(c.rwc)
+	c.bw = bufio.NewWriter(c.rwc)
+}
+
+func (c *client) GetMessageById(messageID int) (*Message, bool) {
+	if requestToAbandon, ok := c.requestList[messageID]; ok {
+		return &requestToAbandon, true
+	}
+	return nil, false
 }
 
 func (c *client) Addr() net.Addr {
@@ -58,7 +73,7 @@ func (c *client) serve() {
 				var r = &ExtendedResponse{}
 				r.ResultCode = LDAPResultUnwillingToPerform
 				r.DiagnosticMessage = "server is about to stop"
-				r.responseName = NoticeOfDisconnection
+				r.ResponseName = NoticeOfDisconnection
 				c.chanOut <- *r
 				c.rwc.SetReadDeadline(time.Now().Add(time.Second))
 				return
@@ -71,7 +86,7 @@ func (c *client) serve() {
 		}
 	}()
 
-	c.requestList = make(map[int]request)
+	c.requestList = make(map[int]Message)
 
 	for {
 
@@ -94,12 +109,14 @@ func (c *client) serve() {
 		}
 
 		//Convert ASN1 binaryMessage to a ldap RequestMessage
-		var request request
-		request, err = messagePacket.getRequestMessage()
+		var message Message
+		message, err = messagePacket.readMessage()
+
 		if err != nil {
-			log.Printf("Error : %s", err.Error())
+			log.Printf("Error reading Message : %s", err.Error())
+			continue
 		}
-		log.Printf("<<< %d - %s - hex=%x", c.Numero, reflect.TypeOf(request).Name(), messagePacket.Packet.Bytes())
+		log.Printf("<<< %d - %s - hex=%x", c.Numero, reflect.TypeOf(message.protocolOp).Name(), messagePacket.Packet.Bytes())
 
 		// TODO: Use a implementation to limit runnuning request by client
 		// solution 1 : when the buffered output channel is full, send a busy
@@ -107,17 +124,17 @@ func (c *client) serve() {
 		// And when the limit is reached THEN send a BusyLdapMessage
 
 		// When message is an UnbindRequest, stop serving
-		if _, ok := request.(UnbindRequest); ok {
+		if _, ok := message.protocolOp.(UnbindRequest); ok {
 			return
 		}
 
 		// If client requests a startTls, do not handle it in a
 		// goroutine, connection has to remain free until TLS is OK
 		// @see RFC https://tools.ietf.org/html/rfc4511#section-4.14.1
-		if req, ok := request.(ExtendedRequest); ok {
+		if req, ok := message.protocolOp.(ExtendedRequest); ok {
 			if req.GetResponseName() == NoticeOfStartTLS {
 				c.wg.Add(1)
-				c.ProcessRequestMessage(request)
+				c.ProcessRequestMessage(message)
 				continue
 			}
 		}
@@ -125,7 +142,7 @@ func (c *client) serve() {
 		// TODO: go/non go routine choice should be done in the ProcessRequestMessage
 		// not in the client.serve func
 		c.wg.Add(1)
-		go c.ProcessRequestMessage(request)
+		go c.ProcessRequestMessage(message)
 	}
 
 }
@@ -147,7 +164,7 @@ func (c *client) close() {
 	// signals to all currently running request processor to stop
 	for messageID, request := range c.requestList {
 		log.Printf("Client [%d] sent abandon signal to request[messageID = %d]", c.Numero, messageID)
-		go request.abort()
+		go request.Abandon()
 	}
 
 	// wait for all request processor to end
@@ -171,109 +188,31 @@ func (c *client) writeLdapResult(lr response) {
 	c.bw.Flush()
 }
 
-func (c *client) ProcessRequestMessage(request request) {
+type ResponseWriter interface {
+	Write(lr response)
+}
+
+type responseWriterImpl struct {
+	chanOut   chan response
+	messageID int
+}
+
+func (w responseWriterImpl) Write(lr response) {
+	w.chanOut <- lr
+}
+
+func (c *client) ProcessRequestMessage(m Message) {
 	defer c.wg.Done()
-	defer delete(c.requestList, request.getMessageID())
 
-	switch request.(type) {
-	case BindRequest:
-		var req = request.(BindRequest)
-		req.out = c.chanOut
-		req.Done = make(chan bool)
-		c.requestList[request.getMessageID()] = &req
-		var res = BindResponse{request: &req}
-		c.srv.Handler.bind(res, &req)
+	c.requestList[m.MessageID] = m
+	defer delete(c.requestList, m.MessageID)
 
-	case SearchRequest:
-		var req = request.(SearchRequest)
-		req.out = c.chanOut
-		req.Done = make(chan bool)
-		c.requestList[request.getMessageID()] = &req
+	m.Done = make(chan bool)
 
-		var res = SearchResponse{request: &req}
-		c.srv.Handler.search(res, &req)
+	var w responseWriterImpl
+	w.chanOut = c.chanOut
+	w.messageID = m.MessageID
+	m.Client = c
 
-	case AbandonRequest:
-		var req = request.(AbandonRequest)
-		req.out = c.chanOut
-		req.Done = make(chan bool)
-		messageIDToAbandon := req.getIDToAbandon()
-		c.requestList[request.getMessageID()] = &req
-
-		// retreive the request to abandon, and send a abort signal to it
-		if requestToAbandon, ok := c.requestList[messageIDToAbandon]; ok {
-			requestToAbandon.abort()
-			log.Printf("Abandon signal sent to request processor [messageID=%d]", messageIDToAbandon)
-		}
-
-	case AddRequest:
-		var req = request.(AddRequest)
-		req.out = c.chanOut
-		req.Done = make(chan bool)
-		c.requestList[request.getMessageID()] = &req
-
-		var res = AddResponse{request: &req}
-		c.srv.Handler.add(res, &req)
-
-	case DeleteRequest:
-		var req = request.(DeleteRequest)
-		req.out = c.chanOut
-		req.Done = make(chan bool)
-		c.requestList[request.getMessageID()] = &req
-
-		var res = DeleteResponse{request: &req}
-		c.srv.Handler.delete(res, &req)
-
-	case ModifyRequest:
-		var req = request.(ModifyRequest)
-		req.out = c.chanOut
-		req.Done = make(chan bool)
-		c.requestList[request.getMessageID()] = &req
-
-		var res = ModifyResponse{request: &req}
-		c.srv.Handler.modify(res, &req)
-
-	case UnbindRequest:
-		log.Print("Unbind Request sould not be handled here")
-
-	case ExtendedRequest:
-		var req = request.(ExtendedRequest)
-		req.out = c.chanOut
-		req.Done = make(chan bool)
-		c.requestList[request.getMessageID()] = &req
-		var res = ExtendedResponse{request: &req}
-		if req.GetResponseName() == NoticeOfStartTLS {
-			tlsConn := tls.Server(c.rwc, c.srv.TLSconfig)
-			res.ResultCode = LDAPResultSuccess
-			res.responseName = NoticeOfStartTLS
-			c.writeLdapResult(res)
-
-			if err := tlsConn.Handshake(); err != nil {
-				log.Printf("StartTLS Handshake error %v", err)
-				res.DiagnosticMessage = fmt.Sprintf("StartTLS Handshake error : \"%s\"", err.Error())
-				res.ResultCode = LDAPResultOperationsError
-				c.writeLdapResult(res)
-				return
-			}
-
-			c.rwc = tlsConn
-			c.br = bufio.NewReader(c.rwc)
-			c.bw = bufio.NewWriter(c.rwc)
-			log.Println("StartTLS OK")
-		} else {
-			c.srv.Handler.extended(res, &req)
-		}
-
-	case CompareRequest:
-		var req = request.(CompareRequest)
-		req.out = c.chanOut
-		req.Done = make(chan bool)
-		c.requestList[request.getMessageID()] = &req
-		var res = CompareResponse{request: &req}
-		c.srv.Handler.compare(res, &req)
-
-	default:
-		c.srv.Handler.unknow(&request)
-	}
-
+	c.srv.Handler.ServeLDAP(w, &m)
 }

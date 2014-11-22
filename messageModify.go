@@ -1,19 +1,16 @@
 package ldapserver
 
 type ModifyRequest struct {
-	message
-	protocolOp struct {
-		object  LDAPDN
-		changes []modifyRequestChange
-	}
+	object  LDAPDN
+	changes []modifyRequestChange
 }
 
 func (r *ModifyRequest) GetChanges() []modifyRequestChange {
-	return r.protocolOp.changes
+	return r.changes
 }
 
 func (r *ModifyRequest) GetObject() LDAPDN {
-	return r.protocolOp.object
+	return r.object
 }
 
 type modifyRequestChange struct {
@@ -34,9 +31,9 @@ type ModifyResponse struct {
 	request *ModifyRequest
 }
 
-func (r *ModifyResponse) Send() {
-	if r.request.out != nil {
-		r.request.out <- *r
-		r.request.wroteMessage++
-	}
+func NewModifyResponse(messageID int, resultCode int) ModifyResponse {
+	r := ModifyResponse{}
+	r.MessageID = messageID
+	r.ResultCode = resultCode
+	return r
 }
