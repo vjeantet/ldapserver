@@ -1,5 +1,6 @@
 package ldapserver
 
+// OCTETSTRING ASN.1 types
 type OCTETSTRING string
 
 // LDAPOID is a notational convenience to indicate that the

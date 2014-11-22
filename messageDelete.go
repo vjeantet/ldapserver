@@ -3,7 +3,7 @@ package ldapserver
 // DeleteRequest is a definition of the Delete Operation
 type DeleteRequest LDAPDN
 
-// GetDN returns the entry's DN to delete
+// GetEntryDN returns the entry's DN to delete
 func (r *DeleteRequest) GetEntryDN() LDAPDN {
 	return LDAPDN(*r)
 }

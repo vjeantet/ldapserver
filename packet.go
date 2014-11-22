@@ -20,7 +20,7 @@ func (msg *messagePacket) getOperation() int {
 func (msg *messagePacket) readMessage() (m Message, err error) {
 	defer func() {
 		if r := recover(); r != nil {
-			err = errors.New(fmt.Sprintf("invalid packet received hex=%x", msg.Packet.Bytes()))
+			err = fmt.Errorf("invalid packet received hex=%x", msg.Packet.Bytes())
 		}
 	}()
 
@@ -123,7 +123,7 @@ func (msg *messagePacket) readMessage() (m Message, err error) {
 		m.protocolOp = r
 		return m, nil
 	default:
-		return m, errors.New(fmt.Sprintf("unknow ldap operation [operation=%d]", msg.getOperation()))
+		return m, fmt.Errorf("unknow ldap operation [operation=%d]", msg.getOperation())
 	}
 
 }

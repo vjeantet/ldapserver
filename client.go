@@ -31,7 +31,7 @@ func (c *client) SetConn(conn net.Conn) {
 	c.bw = bufio.NewWriter(c.rwc)
 }
 
-func (c *client) GetMessageById(messageID int) (*Message, bool) {
+func (c *client) GetMessageByID(messageID int) (*Message, bool) {
 	if requestToAbandon, ok := c.requestList[messageID]; ok {
 		return &requestToAbandon, true
 	}
@@ -188,7 +188,10 @@ func (c *client) writeLdapResult(lr response) {
 	c.bw.Flush()
 }
 
+// ResponseWriter interface is used by an LDAP handler to
+// construct an LDAP response.
 type ResponseWriter interface {
+	// Write writes the LDAPResponse to the connection as part of an LDAP reply.
 	Write(lr response)
 }
 

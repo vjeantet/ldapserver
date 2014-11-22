@@ -2,6 +2,7 @@ package ldapserver
 
 import "reflect"
 
+// Constant to LDAP Request protocol Type names
 const (
 	SEARCH   = "SearchRequest"
 	BIND     = "BindRequest"
@@ -13,8 +14,13 @@ const (
 	ABANDON  = "AbandonRequest"
 )
 
+// HandlerFunc type is an adapter to allow the use of
+// ordinary functions as LDAP handlers.  If f is a function
+// with the appropriate signature, HandlerFunc(f) is a
+// Handler object that calls f.
 type HandlerFunc func(ResponseWriter, *Message)
 
+// RouteMux manages all routes
 type RouteMux struct {
 	routes        []*route
 	notFoundRoute *route
@@ -23,31 +29,31 @@ type RouteMux struct {
 type route struct {
 	operation string
 	handler   HandlerFunc
-	exo_name  LDAPOID
-	s_basedn  string
-	s_filter  string
+	exoName   LDAPOID
+	sBasedn   string
+	sFilter   string
 }
 
 // Match return true when the *Message matches the route
 // conditions
 func (r *route) Match(m *Message) bool {
-	//log.Printf(" exo = %s", r.exo_name)
+	//log.Printf(" exo = %s", r.exoName)
 	if reflect.TypeOf(m.protocolOp).Name() != r.operation {
 		return false
 	}
 
 	switch v := m.protocolOp.(type) {
 	case ExtendedRequest:
-		if "" != r.exo_name {
-			if v.GetResponseName() == r.exo_name {
+		if "" != r.exoName {
+			if v.GetResponseName() == r.exoName {
 				return true
 			}
 			return false
 		}
 
 	case SearchRequest:
-		if "" != r.s_basedn {
-			if string(v.GetBaseObject()) == r.s_basedn {
+		if "" != r.sBasedn {
+			if string(v.GetBaseObject()) == r.sBasedn {
 				return true
 			}
 			return false
@@ -57,17 +63,17 @@ func (r *route) Match(m *Message) bool {
 }
 
 func (r *route) BaseDn(dn string) *route {
-	r.s_basedn = dn
+	r.sBasedn = dn
 	return r
 }
 
 func (r *route) Filter(pattern string) *route {
-	r.s_filter = pattern
+	r.sFilter = pattern
 	return r
 }
 
 func (r *route) RequestName(name LDAPOID) *route {
-	r.exo_name = name
+	r.exoName = name
 	return r
 }
 
@@ -82,6 +88,8 @@ type Handler interface {
 	ServeLDAP(w ResponseWriter, r *Message)
 }
 
+// ServeLDAP dispatches the request to the handler whose
+// pattern most closely matches the request request Message.
 func (h *RouteMux) ServeLDAP(w ResponseWriter, r *Message) {
 
 	//find a matching Route

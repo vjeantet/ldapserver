@@ -5,7 +5,7 @@ package ldapserver
 // Request is defined as follows:
 type AbandonRequest int
 
-// getIDToAbandon retrieves the message ID of the operation to abandon
+// GetIDToAbandon retrieves the message ID of the operation to abandon
 func (r *AbandonRequest) GetIDToAbandon() int {
 	return int(*r)
 }

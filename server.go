@@ -32,7 +32,12 @@ func NewServer() *Server {
 	return &Server{}
 }
 
+// Handle registers the handler for the server.
+// If a handler already exists for pattern, Handle panics
 func (s *Server) Handle(h Handler) {
+	if s.Handler != nil {
+		panic("LDAP: multiple Handler registrations")
+	}
 	s.Handler = h
 }
 

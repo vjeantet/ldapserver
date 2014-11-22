@@ -1,6 +1,6 @@
 package ldapserver
 
-// a BindRequest struct
+// BindRequest struct
 type BindRequest struct {
 	Version  int
 	Login    []byte
