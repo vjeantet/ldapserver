@@ -13,7 +13,9 @@ import (
 
 func main() {
 	//Create a new LDAP Server
+	server := ldap.NewServer()
 
+	//Create routes bindings
 	routes := ldap.NewRouteMux()
 	routes.NotFound(handleNotFound)
 	routes.Extended(handleStartTLS).RequestName(ldap.NoticeOfStartTLS)
@@ -28,10 +30,10 @@ func main() {
 	routes.Search(handleSearchMyCompany).BaseDn("o=My Company, c=US")
 	routes.Search(handleSearch)
 
-	server := ldap.NewServer()
+	//Attache routes to server
 	server.Handle(routes)
 
-	// listen on 10389
+	// listen on 10389 and serve
 	go server.ListenAndServe(":10389")
 
 	// When CTRL+C, SIGINT and SIGTERM signal occurs
@@ -48,7 +50,7 @@ func handleNotFound(w ldap.ResponseWriter, r *ldap.Message) {
 	switch r.GetProtocolOp().(type) {
 	case ldap.BindRequest:
 		res := ldap.NewBindResponse(r.MessageID, ldap.LDAPResultSuccess)
-		res.DiagnosticMessage = "Default binding returns Success"
+		res.DiagnosticMessage = "Default binding behavior set to return Success"
 		w.Write(res)
 
 	default:
@@ -58,8 +60,6 @@ func handleNotFound(w ldap.ResponseWriter, r *ldap.Message) {
 	}
 }
 
-//TODO: Abandon default behavior should come from ldapserver package
-//TODO : TEST !
 func handleAbandon(w ldap.ResponseWriter, m *ldap.Message) {
 	var req = m.GetAbandonRequest()
 	messageIDToAbandon := req.GetIDToAbandon()
@@ -161,24 +161,11 @@ func handleExtended(w ldap.ResponseWriter, m *ldap.Message) {
 }
 
 func handleWhoAmI(w ldap.ResponseWriter, m *ldap.Message) {
-	log.Printf("WHO AM I ????")
-	log.Printf("WHO AM I ????")
-	log.Printf("WHO AM I ????")
-	log.Printf("WHO AM I ????")
-	log.Printf("WHO AM I ????")
-	log.Printf("WHO AM I ????")
 	res := ldap.NewExtendedResponse(m.MessageID, ldap.LDAPResultSuccess)
 	w.Write(res)
 }
 
 func handleSearchMyCompany(w ldap.ResponseWriter, m *ldap.Message) {
-	log.Printf("YEAHHHHHH")
-	log.Printf("YEAHHHHHH")
-	log.Printf("YEAHHHHHH")
-	log.Printf("YEAHHHHHH")
-	log.Printf("YEAHHHHHH")
-	log.Printf("YEAHHHHHH")
-
 	res := ldap.NewSearchResultDoneResponse(m.MessageID, ldap.LDAPResultSuccess)
 	w.Write(res)
 }
@@ -188,10 +175,6 @@ func handleSearch(w ldap.ResponseWriter, m *ldap.Message) {
 	log.Printf("Request BaseDn=%s", r.GetBaseObject())
 	log.Printf("Request Filter=%s", r.GetFilter())
 	log.Printf("Request Attributes=%s", r.GetAttributes())
-
-	//Rechercher de subschemaSubentry
-	//Rercherche de NamingContext
-	//Récupération des TOP noeuds
 
 	// Handle Stop Signal (server stop / client disconnected / Abandoned request....)
 	select {
@@ -205,7 +188,7 @@ func handleSearch(w ldap.ResponseWriter, m *ldap.Message) {
 	e.SetDn("cn=Valere JEANTET, " + string(r.GetBaseObject()))
 	e.AddAttribute("mail", "valere.jeantet@gmail.com", "mail@vjeantet.fr")
 	e.AddAttribute("company", "SODADI")
-	e.AddAttribute("department", "DSI/QSM")
+	e.AddAttribute("department", "DSI/SEC")
 	e.AddAttribute("l", "Ferrieres en brie")
 	e.AddAttribute("mobile", "0612324567")
 	e.AddAttribute("telephoneNumber", "0612324567")
@@ -265,8 +248,6 @@ func getTLSconfig() (*tls.Config, error) {
 	}, nil
 }
 
-//TODO: StartTLS default behavior should come from ldapserver package
-// not GOeable
 func handleStartTLS(w ldap.ResponseWriter, m *ldap.Message) {
 	tlsconfig, _ := getTLSconfig()
 	tlsConn := tls.Server(m.Client.GetConn(), tlsconfig)
