@@ -13,6 +13,16 @@ ldap_set_option($ds, LDAP_OPT_PROTOCOL_VERSION, 3);
 
 ldap_start_tls($ds) ;
 
+$dn = "o=My Company, c=USs";
+$filter="(|(sn=jeantet)(givenname=jeantet*))";
+$justthese = array("ou", "sn", "givenname", "mail");
+
+$sr=ldap_search($ds, $dn, $filter, $justthese);
+
+$info = ldap_get_entries($ds, $sr);
+
+echo $info["count"]." entries returned\n";
+
 $dn = "o=My Company, c=US";
 $filter="(|(sn=jeantet)(givenname=jeantet*))";
 $justthese = array("ou", "sn", "givenname", "mail");
