@@ -5,14 +5,6 @@ import (
 	"reflect"
 )
 
-// request is the interface implemented by each ldap request (BinRequest, SearchRequest, ...) struct
-// type request interface {
-// 	getMessageID() int
-// 	String() string
-// 	getProtocolOp() protocolOp
-// 	abort()
-// }
-
 // response is the interface implemented by each ldap response (BinResponse, SearchResponse, SearchEntryResult,...) struct
 type response interface {
 }

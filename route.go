@@ -37,7 +37,6 @@ type route struct {
 // Match return true when the *Message matches the route
 // conditions
 func (r *route) Match(m *Message) bool {
-	//log.Printf(" exo = %s", r.exoName)
 	if reflect.TypeOf(m.protocolOp).Name() != r.operation {
 		return false
 	}
