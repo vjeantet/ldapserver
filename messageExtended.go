@@ -26,7 +26,6 @@ func (r *ExtendedRequest) GetResponseValue() []byte {
 // defined in RFCs or be private to particular implementations.
 type ExtendedResponse struct {
 	ldapResult
-	request       *ExtendedRequest
 	ResponseName  LDAPOID
 	ResponseValue string
 }

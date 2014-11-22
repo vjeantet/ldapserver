@@ -28,7 +28,6 @@ func (r *modifyRequestChange) GetOperation() int {
 
 type ModifyResponse struct {
 	ldapResult
-	request *ModifyRequest
 }
 
 func NewModifyResponse(messageID int, resultCode int) ModifyResponse {

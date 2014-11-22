@@ -17,7 +17,6 @@ func (r *AddRequest) GetAttributes() AttributeList {
 
 type AddResponse struct {
 	ldapResult
-	request *AddRequest
 }
 
 func NewAddResponse(messageID int, resultCode int) AddResponse {

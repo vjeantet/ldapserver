@@ -10,7 +10,6 @@ func (r *DeleteRequest) GetEntryDN() LDAPDN {
 
 type DeleteResponse struct {
 	ldapResult
-	request *DeleteRequest
 }
 
 func NewDeleteResponse(messageID int, resultCode int) DeleteResponse {

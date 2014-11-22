@@ -15,7 +15,6 @@ func (r *CompareRequest) GetAttributeValueAssertion() *AttributeValueAssertion {
 
 type CompareResponse struct {
 	ldapResult
-	request *CompareRequest
 }
 
 func NewCompareResponse(messageID int, resultCode int) CompareResponse {
