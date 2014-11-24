@@ -7,8 +7,8 @@ I'm co-learning golang with [R00x](https://github.com/lor00x). Have a look on it
 
 ldapserver is a helper library for building server software capable of speaking the LDAP protocol. This could be an alternate implementation of LDAP, a custom proxy to LDAP, or even a completely different backend capable of "masquerading" its API as a LDAP Server.
 
-the package supports 
-* all basic LDAP Operations (bind, search, add, compare, modify, delete, extended) 
+The package supports 
+* All basic LDAP Operations (bind, search, add, compare, modify, delete, extended)
 * SSL
 * StartTLS
 * Unbind request is implemented, but is handled internally to close connection.
@@ -36,12 +36,12 @@ import (
 )
 
 func main() {
-	//Create a new LDAP Server
-	server := ldap.NewServer()
-
 	//LDAP handlers routes
 	routes := ldap.NewRouteMux()
 	routes.Bind(handleBind)
+
+	//Create a new LDAP Server
+	server := ldap.NewServer()
 	server.Handle(routes)
 
 	// listen on 10389
@@ -69,3 +69,6 @@ func handleBind(w ldap.ResponseWriter, m *ldap.Message) {
 	w.Write(res)
 }
 ```
+
+# more examples
+Look into the "examples" folder
