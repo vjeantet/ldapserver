@@ -70,15 +70,14 @@ func (c *client) serve() {
 		for {
 			select {
 			case <-c.srv.chDone: // server signals shutdown process
-				var r = &ExtendedResponse{}
-				r.ResultCode = LDAPResultUnwillingToPerform
+				r := NewExtendedResponse(LDAPResultUnwillingToPerform)
 				r.DiagnosticMessage = "server is about to stop"
 				r.ResponseName = NoticeOfDisconnection
 				c.chanOut <- r
 				c.rwc.SetReadDeadline(time.Now().Add(time.Second))
 				return
-				//TODO: return a UnwillingToPerform to the messagePacket request
 			default:
+				//FIX: This cause a Race condition
 				if c.closing == true {
 					return
 				}
@@ -96,19 +95,19 @@ func (c *client) serve() {
 
 		//Read client input as a ASN1/BER binary message
 		messagePacket, err := readMessagePacket(c.br)
-
 		if err != nil {
 			log.Printf("Error readMessagePacket: %s", err)
 			return
 		}
 
 		// if client is in closing mode, drop message and exit
+		// FIX: this cause a race condition
 		if c.closing == true {
 			log.Print("one client message dropped !")
 			return
 		}
 
-		//Convert ASN1 binaryMessage to a ldap RequestMessage
+		//Convert ASN1 binaryMessage to a ldap Request Message
 		var message Message
 		message, err = messagePacket.readMessage()
 
