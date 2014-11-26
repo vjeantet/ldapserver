@@ -7,6 +7,7 @@ import (
 
 // response is the interface implemented by each ldap response (BinResponse, SearchResponse, SearchEntryResult,...) struct
 type response interface {
+	SetMessageID(ID int)
 }
 
 // ldapResult is the construct used in LDAP protocol to return
@@ -22,9 +23,12 @@ type ldapResult struct {
 	MessageID         int
 }
 
-func NewResponse(messageID int, resultCode int) ldapResult {
-	r := ldapResult{}
-	r.MessageID = messageID
+func (e *ldapResult) SetMessageID(ID int) {
+	e.MessageID = ID
+}
+
+func NewResponse(resultCode int) *ldapResult {
+	r := &ldapResult{}
 	r.ResultCode = resultCode
 	return r
 }
@@ -33,13 +37,11 @@ type ProtocolOp interface {
 }
 
 type Message struct {
-	Client       *client
-	wroteMessage int
-	MessageID    int
-	protocolOp   ProtocolOp
-	Controls     []interface{}
-	out          chan response
-	Done         chan bool
+	Client     *client
+	MessageID  int
+	protocolOp ProtocolOp
+	Controls   []interface{}
+	Done       chan bool
 }
 
 func (m *Message) String() string {

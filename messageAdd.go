@@ -19,9 +19,8 @@ type AddResponse struct {
 	ldapResult
 }
 
-func NewAddResponse(messageID int, resultCode int) AddResponse {
-	r := AddResponse{}
-	r.MessageID = messageID
+func NewAddResponse(resultCode int) *AddResponse {
+	r := &AddResponse{}
 	r.ResultCode = resultCode
 	return r
 }

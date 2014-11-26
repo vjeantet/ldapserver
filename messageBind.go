@@ -22,9 +22,8 @@ type BindResponse struct {
 	serverSaslCreds string
 }
 
-func NewBindResponse(messageID int, resultCode int) BindResponse {
-	r := BindResponse{}
-	r.MessageID = messageID
+func NewBindResponse(resultCode int) *BindResponse {
+	r := &BindResponse{}
 	r.ResultCode = resultCode
 	return r
 }

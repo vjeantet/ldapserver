@@ -46,6 +46,10 @@ type SearchResultEntry struct {
 	attributes PartialAttributeList
 }
 
+func (e *SearchResultEntry) SetMessageID(ID int) {
+	e.MessageID = ID
+}
+
 func (e *SearchResultEntry) SetDn(dn string) {
 	e.dN = dn
 }
@@ -61,15 +65,13 @@ type SearchResponse struct {
 	//Controls []Control
 }
 
-func NewSearchResultDoneResponse(messageID int, resultCode int) SearchResponse {
-	r := SearchResponse{}
-	r.MessageID = messageID
+func NewSearchResultDoneResponse(resultCode int) *SearchResponse {
+	r := &SearchResponse{}
 	r.ResultCode = resultCode
 	return r
 }
 
-func NewSearchResultEntry(messageID int) SearchResultEntry {
-	r := SearchResultEntry{}
-	r.MessageID = messageID
+func NewSearchResultEntry() *SearchResultEntry {
+	r := &SearchResultEntry{}
 	return r
 }

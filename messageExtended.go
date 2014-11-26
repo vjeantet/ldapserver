@@ -30,9 +30,8 @@ type ExtendedResponse struct {
 	ResponseValue string
 }
 
-func NewExtendedResponse(messageID int, resultCode int) ExtendedResponse {
-	r := ExtendedResponse{}
-	r.MessageID = messageID
+func NewExtendedResponse(resultCode int) *ExtendedResponse {
+	r := &ExtendedResponse{}
 	r.ResultCode = resultCode
 	return r
 }

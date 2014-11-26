@@ -214,8 +214,8 @@ func readMessagePacket(br *bufio.Reader) (*messagePacket, error) {
 
 func newMessagePacket(lr response) *ber.Packet {
 	switch v := lr.(type) {
-	case BindResponse:
-		var b = lr.(BindResponse)
+	case *BindResponse:
+		var b = lr.(*BindResponse)
 		packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
 		packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(b.MessageID), "MessageID"))
 		bindResponse := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationBindResponse, nil, "Bind Response")
@@ -225,8 +225,8 @@ func newMessagePacket(lr response) *ber.Packet {
 		packet.AppendChild(bindResponse)
 		return packet
 
-	case SearchResponse:
-		var res = lr.(SearchResponse)
+	case *SearchResponse:
+		var res = lr.(*SearchResponse)
 		packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
 		packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(res.MessageID), "MessageID"))
 		searchResultDone := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationSearchResultDone, nil, "Search done")
@@ -236,8 +236,8 @@ func newMessagePacket(lr response) *ber.Packet {
 		packet.AppendChild(searchResultDone)
 		return packet
 
-	case SearchResultEntry:
-		var s = lr.(SearchResultEntry)
+	case *SearchResultEntry:
+		var s = lr.(*SearchResultEntry)
 		packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
 		packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(s.MessageID), "MessageID"))
 		searchResponse := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationSearchResultEntry, nil, "SearchResultEntry")
@@ -258,8 +258,8 @@ func newMessagePacket(lr response) *ber.Packet {
 		packet.AppendChild(searchResponse)
 		return packet
 
-	case ExtendedResponse:
-		var b = lr.(ExtendedResponse)
+	case *ExtendedResponse:
+		var b = lr.(*ExtendedResponse)
 		packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
 		packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(b.MessageID), "MessageID"))
 		extendedResponse := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationExtendedResponse, nil, "Extended Response")
@@ -271,8 +271,8 @@ func newMessagePacket(lr response) *ber.Packet {
 		packet.AppendChild(extendedResponse)
 		return packet
 
-	case AddResponse:
-		var res = lr.(AddResponse)
+	case *AddResponse:
+		var res = lr.(*AddResponse)
 		packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
 		packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(res.MessageID), "MessageID"))
 		packet2 := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationAddResponse, nil, "Add response")
@@ -282,8 +282,8 @@ func newMessagePacket(lr response) *ber.Packet {
 		packet.AppendChild(packet2)
 		return packet
 
-	case DeleteResponse:
-		var res = lr.(DeleteResponse)
+	case *DeleteResponse:
+		var res = lr.(*DeleteResponse)
 		packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
 		packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(res.MessageID), "MessageID"))
 		packet2 := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationDelResponse, nil, "Delete response")
@@ -293,8 +293,8 @@ func newMessagePacket(lr response) *ber.Packet {
 		packet.AppendChild(packet2)
 		return packet
 
-	case ModifyResponse:
-		var res = lr.(ModifyResponse)
+	case *ModifyResponse:
+		var res = lr.(*ModifyResponse)
 		packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
 		packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(res.MessageID), "MessageID"))
 		packet2 := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationModifyResponse, nil, "Modify response")
@@ -304,8 +304,8 @@ func newMessagePacket(lr response) *ber.Packet {
 		packet.AppendChild(packet2)
 		return packet
 
-	case CompareResponse:
-		var res = lr.(CompareResponse)
+	case *CompareResponse:
+		var res = lr.(*CompareResponse)
 		packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
 		packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(res.MessageID), "MessageID"))
 		packet2 := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationCompareResponse, nil, "Compare response")
@@ -314,8 +314,8 @@ func newMessagePacket(lr response) *ber.Packet {
 		packet2.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, res.DiagnosticMessage, "DiagnosticMessage"))
 		packet.AppendChild(packet2)
 		return packet
-	case ldapResult:
-		res := lr.(ldapResult)
+	case *ldapResult:
+		res := lr.(*ldapResult)
 		packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
 		packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(res.MessageID), "MessageID"))
 		packet2 := ber.Encode(ber.ClassApplication, ber.TypeConstructed, 0, nil, "Common")

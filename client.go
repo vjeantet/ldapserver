@@ -74,7 +74,7 @@ func (c *client) serve() {
 				r.ResultCode = LDAPResultUnwillingToPerform
 				r.DiagnosticMessage = "server is about to stop"
 				r.ResponseName = NoticeOfDisconnection
-				c.chanOut <- *r
+				c.chanOut <- r
 				c.rwc.SetReadDeadline(time.Now().Add(time.Second))
 				return
 				//TODO: return a UnwillingToPerform to the messagePacket request
@@ -183,7 +183,7 @@ func (c *client) close() {
 
 func (c *client) writeLdapResult(lr response) {
 	data := newMessagePacket(lr).Bytes()
-	log.Printf(">>> %d - %s - hex=%x", c.Numero, reflect.TypeOf(lr).Name(), data)
+	log.Printf(">>> %d - %s - hex=%x", c.Numero, reflect.TypeOf(lr).Elem().Name(), data)
 	c.bw.Write(data)
 	c.bw.Flush()
 }
@@ -201,6 +201,7 @@ type responseWriterImpl struct {
 }
 
 func (w responseWriterImpl) Write(lr response) {
+	lr.SetMessageID(w.messageID)
 	w.chanOut <- lr
 }
 

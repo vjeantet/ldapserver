@@ -17,9 +17,8 @@ type CompareResponse struct {
 	ldapResult
 }
 
-func NewCompareResponse(messageID int, resultCode int) CompareResponse {
-	r := CompareResponse{}
-	r.MessageID = messageID
+func NewCompareResponse(resultCode int) *CompareResponse {
+	r := &CompareResponse{}
 	r.ResultCode = resultCode
 	return r
 }

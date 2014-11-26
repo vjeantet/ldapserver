@@ -82,7 +82,7 @@ func main() {
 // handleBind return Success if login == mysql
 func handleBind(w ldap.ResponseWriter, m *ldap.Message) {
 	r := m.GetBindRequest()
-	res := ldap.NewBindResponse(m.MessageID, ldap.LDAPResultSuccess)
+	res := ldap.NewBindResponse(ldap.LDAPResultSuccess)
 
 	if string(r.GetLogin()) == "myLogin" {
 		w.Write(res)

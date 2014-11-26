@@ -49,12 +49,12 @@ func main() {
 func handleNotFound(w ldap.ResponseWriter, r *ldap.Message) {
 	switch r.GetProtocolOp().(type) {
 	case ldap.BindRequest:
-		res := ldap.NewBindResponse(r.MessageID, ldap.LDAPResultSuccess)
+		res := ldap.NewBindResponse(ldap.LDAPResultSuccess)
 		res.DiagnosticMessage = "Default binding behavior set to return Success"
 		w.Write(res)
 
 	default:
-		res := ldap.NewResponse(r.MessageID, ldap.LDAPResultUnwillingToPerform)
+		res := ldap.NewResponse(ldap.LDAPResultUnwillingToPerform)
 		res.DiagnosticMessage = "Operation not implemented by server"
 		w.Write(res)
 	}
@@ -72,7 +72,7 @@ func handleAbandon(w ldap.ResponseWriter, m *ldap.Message) {
 
 func handleBind(w ldap.ResponseWriter, m *ldap.Message) {
 	r := m.GetBindRequest()
-	res := ldap.NewBindResponse(m.MessageID, ldap.LDAPResultSuccess)
+	res := ldap.NewBindResponse(ldap.LDAPResultSuccess)
 
 	if string(r.GetLogin()) == "myLogin" {
 		w.Write(res)
@@ -100,7 +100,7 @@ func handleCompare(w ldap.ResponseWriter, m *ldap.Message) {
 	log.Printf(" attribute name to compare : \"%s\"", r.GetAttributeValueAssertion().GetName())
 	log.Printf(" attribute value expected : \"%s\"", r.GetAttributeValueAssertion().GetValue())
 
-	res := ldap.NewCompareResponse(m.MessageID, ldap.LDAPResultCompareTrue)
+	res := ldap.NewCompareResponse(ldap.LDAPResultCompareTrue)
 
 	w.Write(res)
 }
@@ -114,7 +114,7 @@ func handleAdd(w ldap.ResponseWriter, m *ldap.Message) {
 			log.Printf("- %s:%s", attribute.GetDescription(), attributeValue)
 		}
 	}
-	res := ldap.NewAddResponse(m.MessageID, ldap.LDAPResultSuccess)
+	res := ldap.NewAddResponse(ldap.LDAPResultSuccess)
 	w.Write(res)
 }
 
@@ -141,14 +141,14 @@ func handleModify(w ldap.ResponseWriter, m *ldap.Message) {
 
 	}
 
-	res := ldap.NewModifyResponse(m.MessageID, ldap.LDAPResultSuccess)
+	res := ldap.NewModifyResponse(ldap.LDAPResultSuccess)
 	w.Write(res)
 }
 
 func handleDelete(w ldap.ResponseWriter, m *ldap.Message) {
 	r := m.GetDeleteRequest()
 	log.Printf("Deleting entry: %s", r.GetEntryDN())
-	res := ldap.NewDeleteResponse(m.MessageID, ldap.LDAPResultSuccess)
+	res := ldap.NewDeleteResponse(ldap.LDAPResultSuccess)
 	w.Write(res)
 }
 
@@ -156,17 +156,17 @@ func handleExtended(w ldap.ResponseWriter, m *ldap.Message) {
 	r := m.GetExtendedRequest()
 	log.Printf("Extended request received, name=%s", r.GetResponseName())
 	log.Printf("Extended request received, value=%x", r.GetResponseValue())
-	res := ldap.NewExtendedResponse(m.MessageID, ldap.LDAPResultSuccess)
+	res := ldap.NewExtendedResponse(ldap.LDAPResultSuccess)
 	w.Write(res)
 }
 
 func handleWhoAmI(w ldap.ResponseWriter, m *ldap.Message) {
-	res := ldap.NewExtendedResponse(m.MessageID, ldap.LDAPResultSuccess)
+	res := ldap.NewExtendedResponse(ldap.LDAPResultSuccess)
 	w.Write(res)
 }
 
 func handleSearchMyCompany(w ldap.ResponseWriter, m *ldap.Message) {
-	res := ldap.NewSearchResultDoneResponse(m.MessageID, ldap.LDAPResultSuccess)
+	res := ldap.NewSearchResultDoneResponse(ldap.LDAPResultSuccess)
 	w.Write(res)
 }
 
@@ -184,7 +184,7 @@ func handleSearch(w ldap.ResponseWriter, m *ldap.Message) {
 	default:
 	}
 
-	e := ldap.NewSearchResultEntry(m.MessageID)
+	e := ldap.NewSearchResultEntry()
 	e.SetDn("cn=Valere JEANTET, " + string(r.GetBaseObject()))
 	e.AddAttribute("mail", "valere.jeantet@gmail.com", "mail@vjeantet.fr")
 	e.AddAttribute("company", "SODADI")
@@ -195,13 +195,13 @@ func handleSearch(w ldap.ResponseWriter, m *ldap.Message) {
 	e.AddAttribute("cn", "Valère JEANTET")
 	w.Write(e)
 
-	e = ldap.NewSearchResultEntry(m.MessageID)
+	e = ldap.NewSearchResultEntry()
 	e.SetDn("cn=Claire Thomas, " + string(r.GetBaseObject()))
 	e.AddAttribute("mail", "claire.thomas@gmail.com")
 	e.AddAttribute("cn", "Claire THOMAS")
 	w.Write(e)
 
-	res := ldap.NewSearchResultDoneResponse(m.MessageID, ldap.LDAPResultSuccess)
+	res := ldap.NewSearchResultDoneResponse(ldap.LDAPResultSuccess)
 	w.Write(res)
 
 }
@@ -251,7 +251,7 @@ func getTLSconfig() (*tls.Config, error) {
 func handleStartTLS(w ldap.ResponseWriter, m *ldap.Message) {
 	tlsconfig, _ := getTLSconfig()
 	tlsConn := tls.Server(m.Client.GetConn(), tlsconfig)
-	res := ldap.NewExtendedResponse(m.MessageID, ldap.LDAPResultSuccess)
+	res := ldap.NewExtendedResponse(ldap.LDAPResultSuccess)
 	res.ResponseName = ldap.NoticeOfStartTLS
 	w.Write(res)
 

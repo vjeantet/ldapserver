@@ -12,9 +12,8 @@ type DeleteResponse struct {
 	ldapResult
 }
 
-func NewDeleteResponse(messageID int, resultCode int) DeleteResponse {
-	r := DeleteResponse{}
-	r.MessageID = messageID
+func NewDeleteResponse(resultCode int) *DeleteResponse {
+	r := &DeleteResponse{}
 	r.ResultCode = resultCode
 	return r
 }

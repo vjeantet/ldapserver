@@ -106,7 +106,7 @@ func (h *RouteMux) ServeLDAP(w ResponseWriter, r *Message) {
 	if h.notFoundRoute != nil {
 		h.notFoundRoute.handler(w, r)
 	} else {
-		res := NewResponse(r.MessageID, LDAPResultUnwillingToPerform)
+		res := NewResponse(LDAPResultUnwillingToPerform)
 		res.DiagnosticMessage = "Operation not implemented by server"
 		w.Write(res)
 	}
