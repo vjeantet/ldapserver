@@ -2,7 +2,6 @@ package ldapserver
 
 import (
 	"fmt"
-	"reflect"
 
 	roox "github.com/vjeantet/goldap/message"
 )
@@ -35,20 +34,14 @@ func NewResponse(resultCode int) *ldapResult {
 	return r
 }
 
-type ProtocolOp interface {
-}
-
 type Message struct {
 	roox.LDAPMessage
 	Client *client
-	// MessageID  int
-	// protocolOp ProtocolOp
-	// Controls   Controls
-	Done chan bool
+	Done   chan bool
 }
 
 func (m *Message) String() string {
-	return fmt.Sprintf("MessageId=%d, %s", m.MessageID(), reflect.TypeOf(m.ProtocolOp()).Name)
+	return fmt.Sprintf("MessageId=%d, %s", m.MessageID(), m.ProtocolOpName())
 }
 
 // Abandon close the Done channel, to notify handler's user function to stop any
