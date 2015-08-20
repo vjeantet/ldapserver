@@ -72,7 +72,7 @@ func (c *client) serve() {
 			case <-c.srv.chDone: // server signals shutdown process
 				r := NewExtendedResponse(LDAPResultUnwillingToPerform)
 				r.DiagnosticMessage = "server is about to stop"
-				r.ResponseName = NoticeOfDisconnection
+				r.ResponseName = string(NoticeOfDisconnection)
 				c.chanOut <- r
 				c.rwc.SetReadDeadline(time.Now().Add(time.Second))
 				return
@@ -118,7 +118,7 @@ func (c *client) serve() {
 			log.Printf("Error reading Message : %s", err.Error())
 			continue
 		}
-		log.Printf("<<< %d - %s - hex=%x", c.Numero, reflect.TypeOf(message.protocolOp).Name(), messagePacket.Packet.Bytes())
+		log.Printf("<<< %d - %s - hex=%x", c.Numero, reflect.TypeOf(message.protocolOp).Name(), messagePacket)
 
 		// TODO: Use a implementation to limit runnuning request by client
 		// solution 1 : when the buffered output channel is full, send a busy
@@ -134,7 +134,7 @@ func (c *client) serve() {
 		// goroutine, connection has to remain free until TLS is OK
 		// @see RFC https://tools.ietf.org/html/rfc4511#section-4.14.1
 		if req, ok := message.protocolOp.(ExtendedRequest); ok {
-			if req.GetResponseName() == NoticeOfStartTLS {
+			if LDAPOID(req.GetResponseName()) == NoticeOfStartTLS {
 				c.wg.Add(1)
 				c.ProcessRequestMessage(message)
 				continue

@@ -34,7 +34,7 @@ func main() {
 	server.Handle(routes)
 
 	// listen on 10389 and serve
-	go server.ListenAndServe(":10389")
+	go server.ListenAndServe("127.0.0.1:10389")
 
 	// When CTRL+C, SIGINT and SIGTERM signal occurs
 	// Then stop server gracefully
@@ -252,7 +252,7 @@ func handleStartTLS(w ldap.ResponseWriter, m *ldap.Message) {
 	tlsconfig, _ := getTLSconfig()
 	tlsConn := tls.Server(m.Client.GetConn(), tlsconfig)
 	res := ldap.NewExtendedResponse(ldap.LDAPResultSuccess)
-	res.ResponseName = ldap.NoticeOfStartTLS
+	res.ResponseName = string(ldap.NoticeOfStartTLS)
 	w.Write(res)
 
 	if err := tlsConn.Handshake(); err != nil {

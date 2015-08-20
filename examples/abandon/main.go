@@ -71,18 +71,9 @@ func handleSearch(w ldap.ResponseWriter, m *ldap.Message) {
 
 }
 
-// handleBind return Success if login == mysql
+// handleBind return Success for any login/pass
 func handleBind(w ldap.ResponseWriter, m *ldap.Message) {
-	r := m.GetBindRequest()
 	res := ldap.NewBindResponse(ldap.LDAPResultSuccess)
-
-	if string(r.GetLogin()) == "login" {
-		w.Write(res)
-		return
-	}
-
-	log.Printf("Bind failed User=%s, Pass=%s", string(r.GetLogin()), string(r.GetPassword()))
-	res.ResultCode = ldap.LDAPResultInvalidCredentials
-	res.DiagnosticMessage = "invalid credentials"
 	w.Write(res)
+	return
 }

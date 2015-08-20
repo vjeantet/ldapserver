@@ -1,5 +1,13 @@
 package ldapserver
 
+type Controls []Control
+
+type Control struct {
+	controlType  string
+	criticality  bool
+	controlValue string
+}
+
 // OCTETSTRING ASN.1 types
 type OCTETSTRING string
 

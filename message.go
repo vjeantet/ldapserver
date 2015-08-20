@@ -40,7 +40,7 @@ type Message struct {
 	Client     *client
 	MessageID  int
 	protocolOp ProtocolOp
-	Controls   []interface{}
+	Controls   Controls
 	Done       chan bool
 }
 
@@ -71,6 +71,7 @@ func (m *Message) GetSearchRequest() SearchRequest {
 	return m.protocolOp.(SearchRequest)
 }
 
+// TODO: switch Authentification type to know if it's a sasl credential or a simple one
 func (m *Message) GetBindRequest() BindRequest {
 	return m.protocolOp.(BindRequest)
 }

@@ -6,11 +6,11 @@ package ldapserver
 // syntaxes and semantics.  These may be defined in RFCs or be private to
 // particular implementations.
 type ExtendedRequest struct {
-	requestName  LDAPOID
+	requestName  string
 	requestValue []byte
 }
 
-func (r *ExtendedRequest) GetResponseName() LDAPOID {
+func (r *ExtendedRequest) GetResponseName() string {
 	return r.requestName
 }
 
@@ -26,7 +26,7 @@ func (r *ExtendedRequest) GetResponseValue() []byte {
 // defined in RFCs or be private to particular implementations.
 type ExtendedResponse struct {
 	ldapResult
-	ResponseName  LDAPOID
+	ResponseName  string
 	ResponseValue string
 }
 

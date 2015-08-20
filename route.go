@@ -29,7 +29,7 @@ type RouteMux struct {
 type route struct {
 	operation string
 	handler   HandlerFunc
-	exoName   LDAPOID
+	exoName   string
 	sBasedn   string
 	sFilter   string
 }
@@ -72,7 +72,7 @@ func (r *route) Filter(pattern string) *route {
 }
 
 func (r *route) RequestName(name LDAPOID) *route {
-	r.exoName = name
+	r.exoName = string(name)
 	return r
 }
 
