@@ -157,7 +157,7 @@ func (msg *messagePacket) readMessage() (m Message, err error) {
 		m.protocolOp = r
 		return m, nil
 	}
-	log.Fatalf("unknow ldap operation %#v", rMessage)
+
 	return m, fmt.Errorf("unknow ldap operation [operation=%#v]", rMessage)
 }
 
