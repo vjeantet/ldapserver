@@ -3,6 +3,8 @@ package ldapserver
 import (
 	"fmt"
 	"reflect"
+
+	roox "github.com/vjeantet/goldap/message"
 )
 
 // response is the interface implemented by each ldap response (BinResponse, SearchResponse, SearchEntryResult,...) struct
@@ -37,15 +39,16 @@ type ProtocolOp interface {
 }
 
 type Message struct {
-	Client     *client
-	MessageID  int
-	protocolOp ProtocolOp
-	Controls   Controls
-	Done       chan bool
+	roox.LDAPMessage
+	Client *client
+	// MessageID  int
+	// protocolOp ProtocolOp
+	// Controls   Controls
+	Done chan bool
 }
 
 func (m *Message) String() string {
-	return fmt.Sprintf("MessageId=%d, %s", m.MessageID, reflect.TypeOf(m.protocolOp).Name)
+	return fmt.Sprintf("MessageId=%d, %s", m.MessageID(), reflect.TypeOf(m.ProtocolOp()).Name)
 }
 
 // Abandon close the Done channel, to notify handler's user function to stop any
@@ -60,38 +63,34 @@ func (m *Message) GetDoneChannel() chan bool {
 	return m.Done
 }
 
-func (m *Message) GetProtocolOp() ProtocolOp {
-	return m.protocolOp
-}
-
 func (m *Message) GetAbandonRequest() AbandonRequest {
-	return m.protocolOp.(AbandonRequest)
+	return AbandonRequest(m.ProtocolOp().(roox.AbandonRequest))
 }
 func (m *Message) GetSearchRequest() SearchRequest {
-	return m.protocolOp.(SearchRequest)
+	return SearchRequest{m.ProtocolOp().(roox.SearchRequest)}
 }
 
 // TODO: switch Authentification type to know if it's a sasl credential or a simple one
 func (m *Message) GetBindRequest() BindRequest {
-	return m.protocolOp.(BindRequest)
+	return BindRequest{m.ProtocolOp().(roox.BindRequest)}
 }
 
 func (m *Message) GetAddRequest() AddRequest {
-	return m.protocolOp.(AddRequest)
+	return AddRequest{m.ProtocolOp().(roox.AddRequest)}
 }
 
 func (m *Message) GetDeleteRequest() DeleteRequest {
-	return m.protocolOp.(DeleteRequest)
+	return DeleteRequest(m.ProtocolOp().(roox.DelRequest))
 }
 
 func (m *Message) GetModifyRequest() ModifyRequest {
-	return m.protocolOp.(ModifyRequest)
+	return ModifyRequest{m.ProtocolOp().(roox.ModifyRequest)}
 }
 
 func (m *Message) GetCompareRequest() CompareRequest {
-	return m.protocolOp.(CompareRequest)
+	return CompareRequest{m.ProtocolOp().(roox.CompareRequest)}
 }
 
 func (m *Message) GetExtendedRequest() ExtendedRequest {
-	return m.protocolOp.(ExtendedRequest)
+	return ExtendedRequest{m.ProtocolOp().(roox.ExtendedRequest)}
 }

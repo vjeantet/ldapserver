@@ -7,6 +7,8 @@ import (
 	"reflect"
 	"sync"
 	"time"
+
+	roox "github.com/vjeantet/goldap/message"
 )
 
 type client struct {
@@ -118,7 +120,7 @@ func (c *client) serve() {
 			log.Printf("Error reading Message : %s", err.Error())
 			continue
 		}
-		log.Printf("<<< %d - %s - hex=%x", c.Numero, reflect.TypeOf(message.protocolOp).Name(), messagePacket)
+		log.Printf("<<< %d - %s - hex=%x", c.Numero, reflect.TypeOf(message.ProtocolOp()).Name(), messagePacket)
 
 		// TODO: Use a implementation to limit runnuning request by client
 		// solution 1 : when the buffered output channel is full, send a busy
@@ -126,15 +128,15 @@ func (c *client) serve() {
 		// And when the limit is reached THEN send a BusyLdapMessage
 
 		// When message is an UnbindRequest, stop serving
-		if _, ok := message.protocolOp.(UnbindRequest); ok {
+		if _, ok := message.ProtocolOp().(roox.UnbindRequest); ok {
 			return
 		}
 
 		// If client requests a startTls, do not handle it in a
 		// goroutine, connection has to remain free until TLS is OK
 		// @see RFC https://tools.ietf.org/html/rfc4511#section-4.14.1
-		if req, ok := message.protocolOp.(ExtendedRequest); ok {
-			if LDAPOID(req.GetResponseName()) == NoticeOfStartTLS {
+		if req, ok := message.ProtocolOp().(roox.ExtendedRequest); ok {
+			if req.RequestName() == NoticeOfStartTLS {
 				c.wg.Add(1)
 				c.ProcessRequestMessage(message)
 				continue
@@ -211,13 +213,13 @@ func (c *client) ProcessRequestMessage(m Message) {
 	defer c.wg.Done()
 
 	m.Done = make(chan bool, 2)
-	c.requestList[m.MessageID] = m
+	c.requestList[m.MessageID().Int()] = m
 
-	defer delete(c.requestList, m.MessageID)
+	defer delete(c.requestList, m.MessageID().Int())
 
 	var w responseWriterImpl
 	w.chanOut = c.chanOut
-	w.messageID = m.MessageID
+	w.messageID = m.MessageID().Int()
 	m.Client = c
 
 	c.srv.Handler.ServeLDAP(w, &m)

@@ -1,29 +1,9 @@
 package ldapserver
 
+import roox "github.com/vjeantet/goldap/message"
+
 type ModifyRequest struct {
-	object  LDAPDN
-	changes []modifyRequestChange
-}
-
-func (r *ModifyRequest) GetChanges() []modifyRequestChange {
-	return r.changes
-}
-
-func (r *ModifyRequest) GetObject() LDAPDN {
-	return r.object
-}
-
-type modifyRequestChange struct {
-	operation    int
-	modification PartialAttribute
-}
-
-func (r *modifyRequestChange) GetModification() PartialAttribute {
-	return r.modification
-}
-
-func (r *modifyRequestChange) GetOperation() int {
-	return r.operation
+	roox.ModifyRequest
 }
 
 type ModifyResponse struct {

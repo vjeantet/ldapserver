@@ -1,6 +1,11 @@
 package ldapserver
 
-import "reflect"
+import (
+	"log"
+	"reflect"
+
+	roox "github.com/vjeantet/goldap/message"
+)
 
 // Constant to LDAP Request protocol Type names
 const (
@@ -9,7 +14,7 @@ const (
 	COMPARE  = "CompareRequest"
 	ADD      = "AddRequest"
 	MODIFY   = "ModifyRequest"
-	DELETE   = "DeleteRequest"
+	DELETE   = "DelRequest"
 	EXTENDED = "ExtendedRequest"
 	ABANDON  = "AbandonRequest"
 )
@@ -37,22 +42,24 @@ type route struct {
 // Match return true when the *Message matches the route
 // conditions
 func (r *route) Match(m *Message) bool {
-	if reflect.TypeOf(m.protocolOp).Name() != r.operation {
+	if reflect.TypeOf(m.ProtocolOp()).Name() != r.operation {
 		return false
 	}
 
-	switch v := m.protocolOp.(type) {
-	case ExtendedRequest:
+	switch v := m.ProtocolOp().(type) {
+	case roox.ExtendedRequest:
 		if "" != r.exoName {
-			if v.GetResponseName() == r.exoName {
+			if string(v.RequestName()) == r.exoName {
 				return true
 			}
 			return false
 		}
 
-	case SearchRequest:
+	case roox.SearchRequest:
 		if "" != r.sBasedn {
-			if string(v.GetBaseObject()) == r.sBasedn {
+			log.Printf("v.BaseObject() = %#v", v.BaseObject())
+			log.Printf("r.sBasedn = %#v", r.sBasedn)
+			if string(v.BaseObject()) == r.sBasedn {
 				return true
 			}
 			return false
@@ -71,7 +78,7 @@ func (r *route) Filter(pattern string) *route {
 	return r
 }
 
-func (r *route) RequestName(name LDAPOID) *route {
+func (r *route) RequestName(name roox.LDAPOID) *route {
 	r.exoName = string(name)
 	return r
 }
@@ -104,11 +111,10 @@ func (h *RouteMux) ServeLDAP(w ResponseWriter, r *Message) {
 	}
 
 	// Catch a AbandonRequest not handled by user
-	switch v := r.protocolOp.(type) {
-	case AbandonRequest:
-		messageIDToAbandon := v.GetIDToAbandon()
+	switch v := r.ProtocolOp().(type) {
+	case roox.AbandonRequest:
 		// retreive the request to abandon, and send a abort signal to it
-		if requestToAbandon, ok := r.Client.GetMessageByID(messageIDToAbandon); ok {
+		if requestToAbandon, ok := r.Client.GetMessageByID(int(v)); ok {
 			requestToAbandon.Abandon()
 		}
 	}

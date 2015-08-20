@@ -1,18 +1,10 @@
 package ldapserver
 
+import roox "github.com/vjeantet/goldap/message"
+
 // AddRequest is a definition of the Add Operation
 type AddRequest struct {
-	entry      LDAPDN
-	attributes AttributeList
-}
-
-func (r *AddRequest) GetEntryDN() LDAPDN {
-	return r.entry
-}
-
-func (r *AddRequest) GetAttributes() AttributeList {
-	return r.attributes
-
+	roox.AddRequest
 }
 
 type AddResponse struct {

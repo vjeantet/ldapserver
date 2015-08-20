@@ -1,12 +1,9 @@
 package ldapserver
 
-// DeleteRequest is a definition of the Delete Operation
-type DeleteRequest LDAPDN
+import roox "github.com/vjeantet/goldap/message"
 
-// GetEntryDN returns the entry's DN to delete
-func (r *DeleteRequest) GetEntryDN() LDAPDN {
-	return LDAPDN(*r)
-}
+// DeleteRequest is a definition of the Delete Operation
+type DeleteRequest roox.DelRequest
 
 type DeleteResponse struct {
 	ldapResult

@@ -1,5 +1,7 @@
 package ldapserver
 
+import roox "github.com/vjeantet/goldap/message"
+
 // filter substrings expressions
 const (
 	FilterSubstringsInitial = 0
@@ -109,10 +111,10 @@ const (
 
 // Extended operation responseName and requestName
 const (
-	NoticeOfDisconnection   LDAPOID = "1.3.6.1.4.1.1466.2003"
-	NoticeOfCancel          LDAPOID = "1.3.6.1.1.8"
-	NoticeOfStartTLS        LDAPOID = "1.3.6.1.4.1.1466.20037"
-	NoticeOfWhoAmI          LDAPOID = "1.3.6.1.4.1.4203.1.11.3"
-	NoticeOfGetConnectionID LDAPOID = "1.3.6.1.4.1.26027.1.6.2"
-	NoticeOfPasswordModify  LDAPOID = "1.3.6.1.4.1.4203.1.11.1"
+	NoticeOfDisconnection   roox.LDAPOID = "1.3.6.1.4.1.1466.2003"
+	NoticeOfCancel          roox.LDAPOID = "1.3.6.1.1.8"
+	NoticeOfStartTLS        roox.LDAPOID = "1.3.6.1.4.1.1466.20037"
+	NoticeOfWhoAmI          roox.LDAPOID = "1.3.6.1.4.1.4203.1.11.3"
+	NoticeOfGetConnectionID roox.LDAPOID = "1.3.6.1.4.1.26027.1.6.2"
+	NoticeOfPasswordModify  roox.LDAPOID = "1.3.6.1.4.1.4203.1.11.1"
 )

@@ -1,16 +1,9 @@
 package ldapserver
 
+import roox "github.com/vjeantet/goldap/message"
+
 type CompareRequest struct {
-	entry LDAPDN
-	ava   AttributeValueAssertion
-}
-
-func (r *CompareRequest) GetEntry() LDAPDN {
-	return r.entry
-}
-
-func (r *CompareRequest) GetAttributeValueAssertion() *AttributeValueAssertion {
-	return &r.ava
+	roox.CompareRequest
 }
 
 type CompareResponse struct {

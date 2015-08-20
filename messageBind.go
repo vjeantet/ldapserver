@@ -1,18 +1,10 @@
 package ldapserver
 
+import roox "github.com/vjeantet/goldap/message"
+
 // BindRequest struct
 type BindRequest struct {
-	Version  int
-	Login    []byte
-	Password []byte
-}
-
-func (r *BindRequest) GetLogin() []byte {
-	return r.Login
-}
-
-func (r *BindRequest) GetPassword() []byte {
-	return r.Password
+	roox.BindRequest
 }
 
 // BindResponse consists simply of an indication from the server of the
