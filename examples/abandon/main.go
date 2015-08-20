@@ -18,7 +18,6 @@ func main() {
 	routes := ldap.NewRouteMux()
 	routes.Bind(handleBind)
 	routes.Search(handleSearch)
-	routes.Abandon(handleAbandon)
 	server.Handle(routes)
 
 	// listen on 10389
@@ -32,17 +31,6 @@ func main() {
 	close(ch)
 
 	server.Stop()
-}
-
-func handleAbandon(w ldap.ResponseWriter, m *ldap.Message) {
-	var req = m.GetAbandonRequest()
-	messageIDToAbandon := req.GetIDToAbandon()
-
-	// retreive the request to abandon, and send a abort signal to it
-	if requestToAbandon, ok := m.Client.GetMessageByID(messageIDToAbandon); ok {
-		requestToAbandon.Abandon()
-		log.Printf("Abandon signal sent to request processor [messageID=%d]", messageIDToAbandon)
-	}
 }
 
 func handleSearch(w ldap.ResponseWriter, m *ldap.Message) {
