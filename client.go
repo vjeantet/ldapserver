@@ -119,7 +119,7 @@ func (c *client) serve() {
 			log.Printf("Error reading Message : %s", err.Error())
 			continue
 		}
-		log.Printf("<<< %d - %s - hex=%x", c.Numero, reflect.TypeOf(message.ProtocolOp()).Name(), messagePacket)
+		log.Printf("<<< %d - %s - hex=%x", c.Numero, message.ProtocolOpName(), messagePacket)
 
 		// TODO: Use a implementation to limit runnuning request by client
 		// solution 1 : when the buffered output channel is full, send a busy

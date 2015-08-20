@@ -2,27 +2,6 @@ package ldapserver
 
 import roox "github.com/vjeantet/goldap/message"
 
-// filter substrings expressions
-const (
-	FilterSubstringsInitial = 0
-	FilterSubstringsAny     = 1
-	FilterSubstringsFinal   = 2
-)
-
-// Filter expressions
-const (
-	FilterAnd             = 0
-	FilterOr              = 1
-	FilterNot             = 2
-	FilterEqualityMatch   = 3
-	FilterSubstrings      = 4
-	FilterGreaterOrEqual  = 5
-	FilterLessOrEqual     = 6
-	FilterPresent         = 7
-	FilterApproxMatch     = 8
-	FilterExtensibleMatch = 9
-)
-
 // LDAP Application Codes
 const (
 	ApplicationBindRequest           = 0
@@ -100,13 +79,6 @@ const (
 	ModifyRequestChangeOperationAdd     = 0
 	ModifyRequestChangeOperationDelete  = 1
 	ModifyRequestChangeOperationReplace = 2
-)
-
-// Search scope constant
-const (
-	SearchRequestScopeBaseObject = 0
-	SearchRequestSingleLevel     = 1
-	SearchRequestHomeSubtree     = 2
 )
 
 // Extended operation responseName and requestName
