@@ -6,6 +6,7 @@ import (
 	"log"
 
 	ber "github.com/vjeantet/asn1-ber"
+	roox "github.com/vjeantet/goldap/message"
 )
 
 type messagePacket struct {
@@ -21,59 +22,14 @@ func readMessagePacket(br *bufio.Reader) (*messagePacket, error) {
 	return messagePacket, err
 }
 
-func (msg *messagePacket) readMessage() (m Message, err error) {
+func (msg *messagePacket) readMessage() (m roox.LDAPMessage, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("invalid packet received hex=%x, %#v", msg.bytes, r)
 		}
 	}()
 
-	rMessage, err := decodeMessage(msg.bytes)
-
-	m = Message{LDAPMessage: rMessage}
-	return m, err
-
-	// switch rMessage.ProtocolOp().(type) {
-	// case roox.BindRequest:
-	// 	ii := rMessage.ProtocolOp().(roox.BindRequest)
-	// 	m.protocolOp = BindRequest{ii}
-	// 	return m, nil
-	// case roox.UnbindRequest:
-	// 	m.protocolOp = UnbindRequest{}
-	// 	return m, nil
-	// case roox.AbandonRequest:
-	// 	ii := rMessage.ProtocolOp().(roox.AbandonRequest)
-	// 	m.protocolOp = AbandonRequest(ii)
-	// 	return m, nil
-	// case roox.DelRequest:
-	// 	ii := rMessage.ProtocolOp().(roox.DelRequest)
-	// 	m.protocolOp = DeleteRequest(ii)
-	// 	return m, nil
-	// case roox.ExtendedRequest:
-	// 	ii := rMessage.ProtocolOp().(roox.ExtendedRequest)
-	// 	m.protocolOp = ExtendedRequest{ii}
-	// 	return m, nil
-	// case roox.CompareRequest:
-	// 	ii := rMessage.ProtocolOp().(roox.CompareRequest)
-	// 	m.protocolOp = CompareRequest{ii}
-	// 	return m, nil
-	// case roox.SearchRequest:
-	// 	ii := rMessage.ProtocolOp().(roox.SearchRequest)
-	// 	m.protocolOp = SearchRequest{ii}
-	// 	return m, nil
-
-	// case roox.AddRequest:
-	// 	ii := rMessage.ProtocolOp().(roox.AddRequest)
-	// 	m.protocolOp = AddRequest{ii}
-	// 	return m, nil
-
-	// case roox.ModifyRequest:
-	// 	ii := rMessage.ProtocolOp().(roox.ModifyRequest)
-	// 	m.protocolOp = ModifyRequest{ii}
-	// 	return m, nil
-	// }
-
-	// return m, fmt.Errorf("unknow ldap operation [operation=%#v]", rMessage)
+	return decodeMessage(msg.bytes)
 }
 
 func newMessagePacket(lr response) *ber.Packet {

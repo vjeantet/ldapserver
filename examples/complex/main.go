@@ -47,8 +47,8 @@ func main() {
 }
 
 func handleNotFound(w ldap.ResponseWriter, r *ldap.Message) {
-	switch r.ProtocolOp().(type) {
-	case ldap.BindRequest:
+	switch r.ProtocolOpType() {
+	case ldap.ApplicationBindRequest:
 		res := ldap.NewBindResponse(ldap.LDAPResultSuccess)
 		res.DiagnosticMessage = "Default binding behavior set to return Success"
 		w.Write(res)

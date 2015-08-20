@@ -1,11 +1,5 @@
 package ldapserver
 
-import roox "github.com/vjeantet/goldap/message"
-
-type ModifyRequest struct {
-	roox.ModifyRequest
-}
-
 type ModifyResponse struct {
 	ldapResult
 }

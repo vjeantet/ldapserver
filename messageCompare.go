@@ -1,11 +1,5 @@
 package ldapserver
 
-import roox "github.com/vjeantet/goldap/message"
-
-type CompareRequest struct {
-	roox.CompareRequest
-}
-
 type CompareResponse struct {
 	ldapResult
 }

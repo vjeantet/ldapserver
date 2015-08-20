@@ -63,34 +63,34 @@ func (m *Message) GetDoneChannel() chan bool {
 	return m.Done
 }
 
-func (m *Message) GetAbandonRequest() AbandonRequest {
-	return AbandonRequest(m.ProtocolOp().(roox.AbandonRequest))
+func (m *Message) GetAbandonRequest() roox.AbandonRequest {
+	return m.ProtocolOp().(roox.AbandonRequest)
 }
-func (m *Message) GetSearchRequest() SearchRequest {
-	return SearchRequest{m.ProtocolOp().(roox.SearchRequest)}
+func (m *Message) GetSearchRequest() roox.SearchRequest {
+	return m.ProtocolOp().(roox.SearchRequest)
 }
 
 // TODO: switch Authentification type to know if it's a sasl credential or a simple one
-func (m *Message) GetBindRequest() BindRequest {
-	return BindRequest{m.ProtocolOp().(roox.BindRequest)}
+func (m *Message) GetBindRequest() roox.BindRequest {
+	return m.ProtocolOp().(roox.BindRequest)
 }
 
-func (m *Message) GetAddRequest() AddRequest {
-	return AddRequest{m.ProtocolOp().(roox.AddRequest)}
+func (m *Message) GetAddRequest() roox.AddRequest {
+	return m.ProtocolOp().(roox.AddRequest)
 }
 
-func (m *Message) GetDeleteRequest() DeleteRequest {
-	return DeleteRequest(m.ProtocolOp().(roox.DelRequest))
+func (m *Message) GetDeleteRequest() roox.DelRequest {
+	return m.ProtocolOp().(roox.DelRequest)
 }
 
-func (m *Message) GetModifyRequest() ModifyRequest {
-	return ModifyRequest{m.ProtocolOp().(roox.ModifyRequest)}
+func (m *Message) GetModifyRequest() roox.ModifyRequest {
+	return m.ProtocolOp().(roox.ModifyRequest)
 }
 
-func (m *Message) GetCompareRequest() CompareRequest {
-	return CompareRequest{m.ProtocolOp().(roox.CompareRequest)}
+func (m *Message) GetCompareRequest() roox.CompareRequest {
+	return m.ProtocolOp().(roox.CompareRequest)
 }
 
-func (m *Message) GetExtendedRequest() ExtendedRequest {
-	return ExtendedRequest{m.ProtocolOp().(roox.ExtendedRequest)}
+func (m *Message) GetExtendedRequest() roox.ExtendedRequest {
+	return m.ProtocolOp().(roox.ExtendedRequest)
 }

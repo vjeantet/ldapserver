@@ -1,12 +1,7 @@
 package ldapserver
 
-import roox "github.com/vjeantet/goldap/message"
-
 // SearchRequest is a definition of the Search Operation
 // baseObject - The name of the base object entry (or possibly the root) relative to which the Search is to be performed
-type SearchRequest struct {
-	roox.SearchRequest
-}
 
 // SearchResultEntry represents an entry found during the Search
 type SearchResultEntry struct {

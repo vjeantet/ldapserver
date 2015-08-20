@@ -112,9 +112,8 @@ func (c *client) serve() {
 			return
 		}
 
-		//Convert ASN1 binaryMessage to a ldap Request Message
-		var message Message
-		message, err = messagePacket.readMessage()
+		//Convert ASN1 binaryMessage to a ldap Message
+		message, err := messagePacket.readMessage()
 
 		if err != nil {
 			log.Printf("Error reading Message : %s", err.Error())
@@ -209,18 +208,22 @@ func (w responseWriterImpl) Write(lr response) {
 	w.chanOut <- lr
 }
 
-func (c *client) ProcessRequestMessage(m Message) {
+func (c *client) ProcessRequestMessage(message roox.LDAPMessage) {
 	defer c.wg.Done()
 
-	m.Done = make(chan bool, 2)
-	c.requestList[m.MessageID().Int()] = m
+	var m Message
+	m = Message{
+		LDAPMessage: message,
+		Done:        make(chan bool, 2),
+		Client:      c,
+	}
 
+	c.requestList[m.MessageID().Int()] = m
 	defer delete(c.requestList, m.MessageID().Int())
 
 	var w responseWriterImpl
 	w.chanOut = c.chanOut
 	w.messageID = m.MessageID().Int()
-	m.Client = c
 
 	c.srv.Handler.ServeLDAP(w, &m)
 }
