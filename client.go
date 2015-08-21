@@ -18,7 +18,7 @@ type client struct {
 	bw          *bufio.Writer
 	chanOut     chan ldap.LDAPMessage
 	wg          sync.WaitGroup
-	closing     bool
+	closing     chan bool
 	requestList map[int]*Message
 	mutex       sync.Mutex
 }
@@ -47,6 +47,7 @@ func (c *client) Addr() net.Addr {
 func (c *client) serve() {
 	defer c.close()
 
+	c.closing = make(chan bool)
 	if onc := c.srv.OnNewConnection; onc != nil {
 		if err := onc(c.rwc); err != nil {
 			log.Printf("Erreur OnNewConnection: %s", err)
@@ -72,6 +73,7 @@ func (c *client) serve() {
 		for {
 			select {
 			case <-c.srv.chDone: // server signals shutdown process
+				c.wg.Add(1)
 				r := NewExtendedResponse(LDAPResultUnwillingToPerform)
 				r.SetDiagnosticMessage("server is about to stop")
 				r.SetResponseName(NoticeOfDisconnection)
@@ -79,13 +81,11 @@ func (c *client) serve() {
 				m := ldap.NewLDAPMessageWithProtocolOp(r)
 
 				c.chanOut <- *m
+				c.wg.Done()
 				c.rwc.SetReadDeadline(time.Now().Add(time.Second))
 				return
-			default:
-				//FIX: This cause a Race condition
-				if c.closing == true {
-					return
-				}
+			case <-c.closing:
+				return
 			}
 		}
 	}()
@@ -107,13 +107,14 @@ func (c *client) serve() {
 			log.Printf("Error readMessagePacket: %s", err)
 			return
 		}
-
+		log.Printf("msg = %#v", messagePacket)
+		log.Printf("err = %#v", err)
 		// if client is in closing mode, drop message and exit
 		// FIX: this cause a race condition
-		if c.closing == true {
-			log.Print("one client message dropped !")
-			return
-		}
+		// if c.closing == true {
+		// 	log.Print("one client message dropped !")
+		// 	return
+		// }
 
 		//Convert ASN1 binaryMessage to a ldap Message
 		message, err := messagePacket.readMessage()
@@ -161,10 +162,12 @@ func (c *client) serve() {
 // * signal to server that client shutdown is ok
 func (c *client) close() {
 	log.Printf("client %d close()", c.Numero)
-	c.closing = true //FIXME: subject to data race condition ?
+	close(c.closing)
+	log.Printf("client %d close() - closing signal sent", c.Numero)
+
 	// stop reading from client
 	c.rwc.SetReadDeadline(time.Now().Add(time.Second))
-
+	log.Printf("client %d close() - stop reading from client", c.Numero)
 	// TODO: Send a Disconnection notification
 
 	// signals to all currently running request processor to stop
@@ -174,6 +177,7 @@ func (c *client) close() {
 		go request.Abandon()
 	}
 	c.mutex.Unlock()
+	log.Printf("client %d close() - Abandon signal sent to processors", c.Numero)
 
 	// wait for all request processor to end
 	//log.Printf("waiting the end of current (%d) client's requests", c.Numero)

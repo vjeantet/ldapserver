@@ -17,8 +17,12 @@ func readMessagePacket(br *bufio.Reader) (*messagePacket, error) {
 	var bytes *[]byte
 	bytes, err = readLdapMessageBytes(br)
 
-	messagePacket := &messagePacket{bytes: *bytes}
-	return messagePacket, err
+	if err == nil {
+		messagePacket := &messagePacket{bytes: *bytes}
+		return messagePacket, err
+	}
+	return &messagePacket{}, err
+
 }
 
 func (msg *messagePacket) readMessage() (m ldap.LDAPMessage, err error) {
