@@ -35,9 +35,9 @@ func main() {
 
 func handleSearch(w ldap.ResponseWriter, m *ldap.Message) {
 	r := m.GetSearchRequest()
-	log.Printf("Request BaseDn=%s", r.GetBaseObject())
-	log.Printf("Request Filter=%s", r.GetFilter())
-	log.Printf("Request Attributes=%s", r.GetAttributes())
+	log.Printf("Request BaseDn=%s", r.BaseObject())
+	log.Printf("Request Filter=%s", r.FilterString())
+	log.Printf("Request Attributes=%s", r.Attributes())
 
 	// Handle Stop Signal (server stop / client disconnected / Abandoned request....)
 	for {
@@ -48,8 +48,7 @@ func handleSearch(w ldap.ResponseWriter, m *ldap.Message) {
 		default:
 		}
 
-		e := ldap.NewSearchResultEntry()
-		e.SetDn("cn=Valere JEANTET, " + string(r.GetBaseObject()))
+		e := ldap.NewSearchResultEntry("cn=Valere JEANTET, " + string(r.BaseObject()))
 		e.AddAttribute("mail", "valere.jeantet@gmail.com", "mail@vjeantet.fr")
 		e.AddAttribute("company", "SODADI")
 		e.AddAttribute("department", "DSI/SEC")
@@ -60,29 +59,15 @@ func handleSearch(w ldap.ResponseWriter, m *ldap.Message) {
 		w.Write(e)
 		time.Sleep(time.Millisecond * 800)
 	}
-	// e = ldap.NewSearchResultEntry()
-	// e.SetDn("cn=Claire Thomas, " + string(r.GetBaseObject()))
-	// e.AddAttribute("mail", "claire.thomas@gmail.com")
-	// e.AddAttribute("cn", "Claire THOMAS")
-	// w.Write(e)
 
 	res := ldap.NewSearchResultDoneResponse(ldap.LDAPResultSuccess)
 	w.Write(res)
 
 }
 
-// handleBind return Success if login == mysql
+// handleBind return Success for any login/pass
 func handleBind(w ldap.ResponseWriter, m *ldap.Message) {
-	r := m.GetBindRequest()
 	res := ldap.NewBindResponse(ldap.LDAPResultSuccess)
-
-	if string(r.GetLogin()) == "login" {
-		w.Write(res)
-		return
-	}
-
-	log.Printf("Bind failed User=%s, Pass=%s", string(r.GetLogin()), string(r.GetPassword()))
-	res.ResultCode = ldap.LDAPResultInvalidCredentials
-	res.DiagnosticMessage = "invalid credentials"
 	w.Write(res)
+	return
 }

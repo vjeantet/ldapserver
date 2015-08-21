@@ -1,25 +1,6 @@
 package ldapserver
 
-// filter substrings expressions
-const (
-	FilterSubstringsInitial = 0
-	FilterSubstringsAny     = 1
-	FilterSubstringsFinal   = 2
-)
-
-// Filter expressions
-const (
-	FilterAnd             = 0
-	FilterOr              = 1
-	FilterNot             = 2
-	FilterEqualityMatch   = 3
-	FilterSubstrings      = 4
-	FilterGreaterOrEqual  = 5
-	FilterLessOrEqual     = 6
-	FilterPresent         = 7
-	FilterApproxMatch     = 8
-	FilterExtensibleMatch = 9
-)
+import ldap "github.com/vjeantet/goldap/message"
 
 // LDAP Application Codes
 const (
@@ -100,19 +81,12 @@ const (
 	ModifyRequestChangeOperationReplace = 2
 )
 
-// Search scope constant
-const (
-	SearchRequestScopeBaseObject = 0
-	SearchRequestSingleLevel     = 1
-	SearchRequestHomeSubtree     = 2
-)
-
 // Extended operation responseName and requestName
 const (
-	NoticeOfDisconnection   LDAPOID = "1.3.6.1.4.1.1466.2003"
-	NoticeOfCancel          LDAPOID = "1.3.6.1.1.8"
-	NoticeOfStartTLS        LDAPOID = "1.3.6.1.4.1.1466.20037"
-	NoticeOfWhoAmI          LDAPOID = "1.3.6.1.4.1.4203.1.11.3"
-	NoticeOfGetConnectionID LDAPOID = "1.3.6.1.4.1.26027.1.6.2"
-	NoticeOfPasswordModify  LDAPOID = "1.3.6.1.4.1.4203.1.11.1"
+	NoticeOfDisconnection   ldap.LDAPOID = "1.3.6.1.4.1.1466.2003"
+	NoticeOfCancel          ldap.LDAPOID = "1.3.6.1.1.8"
+	NoticeOfStartTLS        ldap.LDAPOID = "1.3.6.1.4.1.1466.20037"
+	NoticeOfWhoAmI          ldap.LDAPOID = "1.3.6.1.4.1.4203.1.11.3"
+	NoticeOfGetConnectionID ldap.LDAPOID = "1.3.6.1.4.1.26027.1.6.2"
+	NoticeOfPasswordModify  ldap.LDAPOID = "1.3.6.1.4.1.4203.1.11.1"
 )

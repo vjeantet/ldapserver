@@ -4,9 +4,10 @@ import (
 	"bufio"
 	"log"
 	"net"
-	"reflect"
 	"sync"
 	"time"
+
+	ldap "github.com/vjeantet/goldap/message"
 )
 
 type client struct {
@@ -15,7 +16,7 @@ type client struct {
 	rwc         net.Conn
 	br          *bufio.Reader
 	bw          *bufio.Writer
-	chanOut     chan response
+	chanOut     chan ldap.LDAPMessage
 	wg          sync.WaitGroup
 	closing     bool
 	requestList map[int]Message
@@ -55,12 +56,12 @@ func (c *client) serve() {
 	// Create the ldap response queue to be writted to client (buffered to 20)
 	// buffered to 20 means that If client is slow to handler responses, Server
 	// Handlers will stop to send more respones
-	c.chanOut = make(chan response)
+	c.chanOut = make(chan ldap.LDAPMessage)
 
 	// for each message in c.chanOut send it to client
 	go func() {
 		for msg := range c.chanOut {
-			c.writeLdapResult(msg)
+			c.writeMessage(msg)
 		}
 
 	}()
@@ -71,9 +72,12 @@ func (c *client) serve() {
 			select {
 			case <-c.srv.chDone: // server signals shutdown process
 				r := NewExtendedResponse(LDAPResultUnwillingToPerform)
-				r.DiagnosticMessage = "server is about to stop"
-				r.ResponseName = NoticeOfDisconnection
-				c.chanOut <- r
+				r.SetDiagnosticMessage("server is about to stop")
+				r.SetResponseName(NoticeOfDisconnection)
+
+				m := ldap.NewLDAPMessageWithProtocolOp(r)
+
+				c.chanOut <- *m
 				c.rwc.SetReadDeadline(time.Now().Add(time.Second))
 				return
 			default:
@@ -110,15 +114,14 @@ func (c *client) serve() {
 			return
 		}
 
-		//Convert ASN1 binaryMessage to a ldap Request Message
-		var message Message
-		message, err = messagePacket.readMessage()
+		//Convert ASN1 binaryMessage to a ldap Message
+		message, err := messagePacket.readMessage()
 
 		if err != nil {
 			log.Printf("Error reading Message : %s", err.Error())
 			continue
 		}
-		log.Printf("<<< %d - %s - hex=%x", c.Numero, reflect.TypeOf(message.protocolOp).Name(), messagePacket.Packet.Bytes())
+		log.Printf("<<< %d - %s - hex=%x", c.Numero, message.ProtocolOpName(), messagePacket)
 
 		// TODO: Use a implementation to limit runnuning request by client
 		// solution 1 : when the buffered output channel is full, send a busy
@@ -126,15 +129,15 @@ func (c *client) serve() {
 		// And when the limit is reached THEN send a BusyLdapMessage
 
 		// When message is an UnbindRequest, stop serving
-		if _, ok := message.protocolOp.(UnbindRequest); ok {
+		if _, ok := message.ProtocolOp().(ldap.UnbindRequest); ok {
 			return
 		}
 
 		// If client requests a startTls, do not handle it in a
 		// goroutine, connection has to remain free until TLS is OK
 		// @see RFC https://tools.ietf.org/html/rfc4511#section-4.14.1
-		if req, ok := message.protocolOp.(ExtendedRequest); ok {
-			if req.GetResponseName() == NoticeOfStartTLS {
+		if req, ok := message.ProtocolOp().(ldap.ExtendedRequest); ok {
+			if req.RequestName() == NoticeOfStartTLS {
 				c.wg.Add(1)
 				c.ProcessRequestMessage(message)
 				continue
@@ -183,10 +186,10 @@ func (c *client) close() {
 	c.srv.wg.Done()
 }
 
-func (c *client) writeLdapResult(lr response) {
-	data := newMessagePacket(lr).Bytes()
-	log.Printf(">>> %d - %s - hex=%x", c.Numero, reflect.TypeOf(lr).Elem().Name(), data)
-	c.bw.Write(data)
+func (c *client) writeMessage(m ldap.LDAPMessage) {
+	data, _ := m.Write()
+	log.Printf(">>> %d - %s - hex=%x", c.Numero, m.ProtocolOpName(), data.Bytes())
+	c.bw.Write(data.Bytes())
 	c.bw.Flush()
 }
 
@@ -194,31 +197,36 @@ func (c *client) writeLdapResult(lr response) {
 // construct an LDAP response.
 type ResponseWriter interface {
 	// Write writes the LDAPResponse to the connection as part of an LDAP reply.
-	Write(lr response)
+	Write(po ldap.ProtocolOp)
 }
 
 type responseWriterImpl struct {
-	chanOut   chan response
+	chanOut   chan ldap.LDAPMessage
 	messageID int
 }
 
-func (w responseWriterImpl) Write(lr response) {
-	lr.SetMessageID(w.messageID)
-	w.chanOut <- lr
+func (w responseWriterImpl) Write(po ldap.ProtocolOp) {
+	m := ldap.NewLDAPMessageWithProtocolOp(po)
+	m.SetMessageID(w.messageID)
+	w.chanOut <- *m
 }
 
-func (c *client) ProcessRequestMessage(m Message) {
+func (c *client) ProcessRequestMessage(message ldap.LDAPMessage) {
 	defer c.wg.Done()
 
-	m.Done = make(chan bool, 2)
-	c.requestList[m.MessageID] = m
+	var m Message
+	m = Message{
+		LDAPMessage: message,
+		Done:        make(chan bool, 2),
+		Client:      c,
+	}
 
-	defer delete(c.requestList, m.MessageID)
+	c.requestList[m.MessageID().Int()] = m
+	defer delete(c.requestList, m.MessageID().Int())
 
 	var w responseWriterImpl
 	w.chanOut = c.chanOut
-	w.messageID = m.MessageID
-	m.Client = c
+	w.messageID = m.MessageID().Int()
 
 	c.srv.Handler.ServeLDAP(w, &m)
 }

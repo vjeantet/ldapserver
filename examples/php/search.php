@@ -11,10 +11,10 @@ $ds = ldap_connect($ldap_host)
 ldap_set_option($ds, LDAP_OPT_PROTOCOL_VERSION, 3);
 // $person is all or part of a person's name, eg "Jo"
 
-ldap_start_tls($ds) ;
+ ldap_start_tls($ds) ;
 
 $dn = "o=My Company, c=USs";
-$filter="(|(sn=jeantet)(givenname=jeantet*))";
+$filter="(|(givenname=*)(givenname=*jeantet*)(givenname=jeantet*)(sn=jeantet))";
 $justthese = array("ou", "sn", "givenname", "mail");
 
 $sr=ldap_search($ds, $dn, $filter, $justthese);
@@ -23,12 +23,12 @@ $info = ldap_get_entries($ds, $sr);
 
 echo $info["count"]." entries returned\n";
 
-$dn = "o=My Company, c=US";
-$filter="(|(sn=jeantet)(givenname=jeantet*))";
-$justthese = array("ou", "sn", "givenname", "mail");
+// $dn = "o=My Company, c=US";
+// $filter="(|(sn=jeantet)(givenname=jeantet*))";
+// $justthese = array("ou", "sn", "givenname", "mail");
 
-$sr=ldap_search($ds, $dn, $filter, $justthese);
+// $sr=ldap_search($ds, $dn, $filter, $justthese);
 
-$info = ldap_get_entries($ds, $sr);
+// $info = ldap_get_entries($ds, $sr);
 
-echo $info["count"]." entries returned\n";
+// echo $info["count"]." entries returned\n";

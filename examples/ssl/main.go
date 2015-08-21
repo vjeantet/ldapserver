@@ -84,13 +84,13 @@ func handleBind(w ldap.ResponseWriter, m *ldap.Message) {
 	r := m.GetBindRequest()
 	res := ldap.NewBindResponse(ldap.LDAPResultSuccess)
 
-	if string(r.GetLogin()) == "myLogin" {
+	if string(r.Name()) == "myLogin" {
 		w.Write(res)
 		return
 	}
 
-	log.Printf("Bind failed User=%s, Pass=%s", string(r.GetLogin()), string(r.GetPassword()))
-	res.ResultCode = ldap.LDAPResultInvalidCredentials
-	res.DiagnosticMessage = "invalid credentials"
+	log.Printf("Bind failed User=%s, Pass=%s", string(r.Name()), string(r.AuthenticationSimple()))
+	res.SetResultCode(ldap.LDAPResultInvalidCredentials)
+	res.SetDiagnosticMessage("invalid credentials")
 	w.Write(res)
 }

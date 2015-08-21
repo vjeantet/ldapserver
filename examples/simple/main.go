@@ -1,3 +1,5 @@
+// Listen to 10389 port for LDAP Request
+// and route bind request to the handleBind func
 package main
 
 import (
@@ -18,7 +20,7 @@ func main() {
 	server.Handle(routes)
 
 	// listen on 10389
-	go server.ListenAndServe(":10389")
+	go server.ListenAndServe("127.0.0.1:10389")
 
 	// When CTRL+C, SIGINT and SIGTERM signal occurs
 	// Then stop server gracefully
@@ -35,13 +37,13 @@ func handleBind(w ldap.ResponseWriter, m *ldap.Message) {
 	r := m.GetBindRequest()
 	res := ldap.NewBindResponse(ldap.LDAPResultSuccess)
 
-	if string(r.GetLogin()) == "myLogin" {
+	if string(r.Name()) == "myLogin" {
 		w.Write(res)
 		return
 	}
 
-	log.Printf("Bind failed User=%s, Pass=%s", string(r.GetLogin()), string(r.GetPassword()))
-	res.ResultCode = ldap.LDAPResultInvalidCredentials
-	res.DiagnosticMessage = "invalid credentials"
+	log.Printf("Bind failed User=%s, Pass=%s", string(r.Name()), string(r.AuthenticationSimple()))
+	res.SetResultCode(ldap.LDAPResultInvalidCredentials)
+	res.SetDiagnosticMessage("invalid credentials")
 	w.Write(res)
 }

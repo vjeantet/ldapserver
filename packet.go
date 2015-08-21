@@ -4,329 +4,139 @@ import (
 	"bufio"
 	"errors"
 	"fmt"
-	"log"
 
-	ber "github.com/vjeantet/asn1-ber"
+	ldap "github.com/vjeantet/goldap/message"
 )
 
 type messagePacket struct {
-	Packet *ber.Packet
-}
-
-func (msg *messagePacket) getOperation() int {
-	return int(msg.Packet.Children[1].Tag)
-}
-
-func (msg *messagePacket) readMessage() (m Message, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = fmt.Errorf("invalid packet received hex=%x", msg.Packet.Bytes())
-		}
-	}()
-
-	m.MessageID = int(msg.Packet.Children[0].Value.(uint64))
-	switch msg.getOperation() {
-	case ApplicationBindRequest:
-		var br BindRequest
-		br.Login = msg.Packet.Children[1].Children[1].Data.Bytes()
-		br.Password = msg.Packet.Children[1].Children[2].Data.Bytes()
-		br.Version = int(msg.Packet.Children[1].Children[0].Value.(uint64))
-		m.protocolOp = br
-		return m, nil
-
-	case ApplicationUnbindRequest:
-		var ur UnbindRequest
-		m.protocolOp = ur
-		return m, nil
-
-	case ApplicationSearchRequest:
-		var sr SearchRequest
-		sr.BaseObject = msg.Packet.Children[1].Children[0].Data.Bytes()
-		sr.Scope = int(msg.Packet.Children[1].Children[1].Value.(uint64))
-		sr.DerefAliases = int(msg.Packet.Children[1].Children[2].Value.(uint64))
-		sr.SizeLimit = int(msg.Packet.Children[1].Children[3].Value.(uint64))
-		sr.TimeLimit = int(msg.Packet.Children[1].Children[4].Value.(uint64))
-		sr.TypesOnly = msg.Packet.Children[1].Children[5].Value.(bool)
-
-		var ldaperr error
-		sr.Filter, ldaperr = decompileFilter(msg.Packet.Children[1].Children[6])
-		if ldaperr != nil {
-			log.Printf("error decompiling searchrequestfilter %s", ldaperr)
-		}
-
-		for i := range msg.Packet.Children[1].Children[7].Children {
-			sr.Attributes = append(sr.Attributes, msg.Packet.Children[1].Children[7].Children[i].Data.Bytes())
-		}
-		m.protocolOp = sr
-		return m, nil
-
-	case ApplicationAddRequest:
-		var r AddRequest
-		r.entry = LDAPDN(msg.Packet.Children[1].Children[0].Data.Bytes())
-
-		for i := range msg.Packet.Children[1].Children[1].Children {
-			rattribute := Attribute{type_: AttributeDescription(msg.Packet.Children[1].Children[1].Children[i].Children[0].Data.Bytes())}
-			for j := range msg.Packet.Children[1].Children[1].Children[i].Children[1].Children {
-				rattribute.vals = append(rattribute.vals, AttributeValue(msg.Packet.Children[1].Children[1].Children[i].Children[1].Children[j].Data.Bytes()))
-			}
-			r.attributes = append(r.attributes, rattribute)
-		}
-		m.protocolOp = r
-		return m, nil
-
-	case ApplicationModifyRequest:
-		var r ModifyRequest
-		r.object = LDAPDN(msg.Packet.Children[1].Children[0].Data.Bytes())
-		for i := range msg.Packet.Children[1].Children[1].Children {
-			operation := int(msg.Packet.Children[1].Children[1].Children[i].Children[0].Value.(uint64))
-			attributeName := msg.Packet.Children[1].Children[1].Children[i].Children[1].Children[0].Value.(string)
-			modifyRequestChange := modifyRequestChange{operation: operation}
-			rattribute := PartialAttribute{type_: AttributeDescription(attributeName)}
-			for j := range msg.Packet.Children[1].Children[1].Children[i].Children[1].Children[1].Children {
-				value := msg.Packet.Children[1].Children[1].Children[i].Children[1].Children[1].Children[j].Value.(string)
-				rattribute.vals = append(rattribute.vals, AttributeValue(value))
-			}
-			modifyRequestChange.modification = rattribute
-			r.changes = append(r.changes, modifyRequestChange)
-		}
-		m.protocolOp = r
-		return m, nil
-
-	case ApplicationDelRequest:
-		var r DeleteRequest
-		r = DeleteRequest(msg.Packet.Children[1].Data.Bytes())
-		m.protocolOp = r
-		return m, nil
-
-	case ApplicationExtendedRequest:
-		var r ExtendedRequest
-		r.requestName = LDAPOID(msg.Packet.Children[1].Children[0].Data.Bytes())
-		if len(msg.Packet.Children[1].Children) > 1 {
-			r.requestValue = msg.Packet.Children[1].Children[1].Data.Bytes()
-		}
-		m.protocolOp = r
-		return m, nil
-
-	case ApplicationAbandonRequest:
-		var r AbandonRequest
-		r = AbandonRequest(ber.DecodeInteger(msg.Packet.Children[1].Data.Bytes()))
-		m.protocolOp = r
-		return m, nil
-
-	case ApplicationCompareRequest:
-		var r CompareRequest
-
-		r.entry = LDAPDN(msg.Packet.Children[1].Children[0].Value.(string))
-		r.ava = AttributeValueAssertion{
-			attributeDesc:  AttributeDescription(msg.Packet.Children[1].Children[1].Children[0].Value.(string)),
-			assertionValue: AssertionValue(msg.Packet.Children[1].Children[1].Children[1].Value.(string))}
-		m.protocolOp = r
-		return m, nil
-	default:
-		return m, fmt.Errorf("unknow ldap operation [operation=%d]", msg.getOperation())
-	}
-
-}
-
-func decompileFilter(packet *ber.Packet) (ret string, err error) {
-	defer func() {
-		if r := recover(); r != nil {
-			err = errors.New("error decompiling filter")
-		}
-	}()
-	ret = "("
-	err = nil
-	childStr := ""
-
-	switch packet.Tag {
-	case FilterAnd:
-		ret += "&"
-		for _, child := range packet.Children {
-			childStr, err = decompileFilter(child)
-			if err != nil {
-				return
-			}
-			ret += childStr
-		}
-	case FilterOr:
-		ret += "|"
-		for _, child := range packet.Children {
-			childStr, err = decompileFilter(child)
-			if err != nil {
-				return
-			}
-			ret += childStr
-		}
-	case FilterNot:
-		ret += "!"
-		childStr, err = decompileFilter(packet.Children[0])
-		if err != nil {
-			return
-		}
-		ret += childStr
-
-	case FilterSubstrings:
-		ret += ber.DecodeString(packet.Children[0].Data.Bytes())
-		ret += "="
-		switch packet.Children[1].Children[0].Tag {
-		case FilterSubstringsInitial:
-			ret += ber.DecodeString(packet.Children[1].Children[0].Data.Bytes()) + "*"
-		case FilterSubstringsAny:
-			ret += "*" + ber.DecodeString(packet.Children[1].Children[0].Data.Bytes()) + "*"
-		case FilterSubstringsFinal:
-			ret += "*" + ber.DecodeString(packet.Children[1].Children[0].Data.Bytes())
-		}
-	case FilterEqualityMatch:
-		ret += ber.DecodeString(packet.Children[0].Data.Bytes())
-		ret += "="
-		ret += ber.DecodeString(packet.Children[1].Data.Bytes())
-	case FilterGreaterOrEqual:
-		ret += ber.DecodeString(packet.Children[0].Data.Bytes())
-		ret += ">="
-		ret += ber.DecodeString(packet.Children[1].Data.Bytes())
-	case FilterLessOrEqual:
-		ret += ber.DecodeString(packet.Children[0].Data.Bytes())
-		ret += "<="
-		ret += ber.DecodeString(packet.Children[1].Data.Bytes())
-	case FilterPresent:
-		if 0 == len(packet.Children) {
-			ret += ber.DecodeString(packet.Data.Bytes())
-		} else {
-			ret += ber.DecodeString(packet.Children[0].Data.Bytes())
-		}
-		ret += "=*"
-	case FilterApproxMatch:
-		ret += ber.DecodeString(packet.Children[0].Data.Bytes())
-		ret += "~="
-		ret += ber.DecodeString(packet.Children[1].Data.Bytes())
-	}
-
-	ret += ")"
-	return
+	bytes []byte
 }
 
 func readMessagePacket(br *bufio.Reader) (*messagePacket, error) {
-	p, err := ber.ReadPacket(br)
-	//ber.PrintPacket(p)
-	messagePacket := &messagePacket{Packet: p}
+	var err error
+	var bytes *[]byte
+	bytes, err = readLdapMessageBytes(br)
+
+	messagePacket := &messagePacket{bytes: *bytes}
 	return messagePacket, err
 }
 
-func newMessagePacket(lr response) *ber.Packet {
-	switch v := lr.(type) {
-	case *BindResponse:
-		var b = lr.(*BindResponse)
-		packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
-		packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(b.MessageID), "MessageID"))
-		bindResponse := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationBindResponse, nil, "Bind Response")
-		bindResponse.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagEnumerated, uint64(b.ResultCode), "ResultCode"))
-		bindResponse.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, string(b.MatchedDN), "MatchedDN"))
-		bindResponse.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, b.DiagnosticMessage, "DiagnosticMessage"))
-		packet.AppendChild(bindResponse)
-		return packet
-
-	case *SearchResponse:
-		var res = lr.(*SearchResponse)
-		packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
-		packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(res.MessageID), "MessageID"))
-		searchResultDone := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationSearchResultDone, nil, "Search done")
-		searchResultDone.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagEnumerated, uint64(res.ResultCode), "ResultCode"))
-		searchResultDone.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, string(res.MatchedDN), "MatchedDN"))
-		searchResultDone.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, res.DiagnosticMessage, "DiagnosticMessage"))
-		packet.AppendChild(searchResultDone)
-		return packet
-
-	case *SearchResultEntry:
-		var s = lr.(*SearchResultEntry)
-		packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
-		packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(s.MessageID), "MessageID"))
-		searchResponse := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationSearchResultEntry, nil, "SearchResultEntry")
-		searchResponse.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, s.dN, "LDAPDN"))
-		attributesList := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "Attributes List")
-		for j := range s.attributes {
-			attributes := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "attributes")
-			attributes.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, string(s.attributes[j].GetDescription()), "type"))
-			values := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSet, nil, "values")
-			for k := range s.attributes[j].vals {
-				values.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, string(s.attributes[j].vals[k]), "val"))
-			}
-			attributes.AppendChild(values)
-			attributesList.AppendChild(attributes)
-
+func (msg *messagePacket) readMessage() (m ldap.LDAPMessage, err error) {
+	defer func() {
+		if r := recover(); r != nil {
+			err = fmt.Errorf("invalid packet received hex=%x, %#v", msg.bytes, r)
 		}
-		searchResponse.AppendChild(attributesList)
-		packet.AppendChild(searchResponse)
-		return packet
+	}()
 
-	case *ExtendedResponse:
-		var b = lr.(*ExtendedResponse)
-		packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
-		packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(b.MessageID), "MessageID"))
-		extendedResponse := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationExtendedResponse, nil, "Extended Response")
-		extendedResponse.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagEnumerated, uint64(b.ResultCode), "ResultCode"))
-		extendedResponse.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, string(b.MatchedDN), "MatchedDN"))
-		extendedResponse.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, b.DiagnosticMessage, "DiagnosticMessage"))
-		extendedResponse.AppendChild(ber.NewString(ber.ClassContext, ber.TypePrimative, 10, string(b.ResponseName), "responsename"))
-		extendedResponse.AppendChild(ber.NewString(ber.ClassContext, ber.TypePrimative, 11, b.ResponseValue, "responsevalue"))
-		packet.AppendChild(extendedResponse)
-		return packet
+	return decodeMessage(msg.bytes)
+}
 
-	case *AddResponse:
-		var res = lr.(*AddResponse)
-		packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
-		packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(res.MessageID), "MessageID"))
-		packet2 := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationAddResponse, nil, "Add response")
-		packet2.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagEnumerated, uint64(res.ResultCode), "ResultCode"))
-		packet2.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, string(res.MatchedDN), "MatchedDN"))
-		packet2.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, res.DiagnosticMessage, "DiagnosticMessage"))
-		packet.AppendChild(packet2)
-		return packet
+func decodeMessage(bytes []byte) (ret ldap.LDAPMessage, err error) {
+	defer func() {
+		if e := recover(); e != nil {
+			err = errors.New(fmt.Sprintf("%s", e))
+		}
+	}()
+	zero := 0
+	ret, err = ldap.ReadLDAPMessage(ldap.NewBytes(zero, bytes))
+	return
+}
 
-	case *DeleteResponse:
-		var res = lr.(*DeleteResponse)
-		packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
-		packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(res.MessageID), "MessageID"))
-		packet2 := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationDelResponse, nil, "Delete response")
-		packet2.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagEnumerated, uint64(res.ResultCode), "ResultCode"))
-		packet2.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, string(res.MatchedDN), "MatchedDN"))
-		packet2.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, res.DiagnosticMessage, "DiagnosticMessage"))
-		packet.AppendChild(packet2)
-		return packet
+// BELLOW SHOULD BE IN ROOX PACKAGE
 
-	case *ModifyResponse:
-		var res = lr.(*ModifyResponse)
-		packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
-		packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(res.MessageID), "MessageID"))
-		packet2 := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationModifyResponse, nil, "Modify response")
-		packet2.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagEnumerated, uint64(res.ResultCode), "ResultCode"))
-		packet2.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, string(res.MatchedDN), "MatchedDN"))
-		packet2.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, res.DiagnosticMessage, "DiagnosticMessage"))
-		packet.AppendChild(packet2)
-		return packet
-
-	case *CompareResponse:
-		var res = lr.(*CompareResponse)
-		packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
-		packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(res.MessageID), "MessageID"))
-		packet2 := ber.Encode(ber.ClassApplication, ber.TypeConstructed, ApplicationCompareResponse, nil, "Compare response")
-		packet2.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagEnumerated, uint64(res.ResultCode), "ResultCode"))
-		packet2.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, string(res.MatchedDN), "MatchedDN"))
-		packet2.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, res.DiagnosticMessage, "DiagnosticMessage"))
-		packet.AppendChild(packet2)
-		return packet
-	case *ldapResult:
-		res := lr.(*ldapResult)
-		packet := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Response")
-		packet.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagInteger, uint64(res.MessageID), "MessageID"))
-		packet2 := ber.Encode(ber.ClassApplication, ber.TypeConstructed, 0, nil, "Common")
-		packet2.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimative, ber.TagEnumerated, uint64(res.ResultCode), "ResultCode"))
-		packet2.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, string(res.MatchedDN), "MatchedDN"))
-		packet2.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimative, ber.TagOctetString, res.DiagnosticMessage, "DiagnosticMessage"))
-		packet.AppendChild(packet2)
-		return packet
-
-	default:
-		log.Printf("newMessagePacket :: unexpected type %T", v)
+func readLdapMessageBytes(br *bufio.Reader) (ret *[]byte, err error) {
+	var bytes []byte
+	var tagAndLength ldap.TagAndLength
+	tagAndLength, err = readTagAndLength(br, &bytes)
+	if err != nil {
+		return
 	}
-	return nil
+	readBytes(br, &bytes, tagAndLength.Length)
+	return &bytes, err
+}
+
+// readTagAndLength parses an ASN.1 tag and length pair from a live connection
+// into a byte slice. It returns the parsed data and the new offset. SET and
+// SET OF (tag 17) are mapped to SEQUENCE and SEQUENCE OF (tag 16) since we
+// don't distinguish between ordered and unordered objects in this code.
+func readTagAndLength(conn *bufio.Reader, bytes *[]byte) (ret ldap.TagAndLength, err error) {
+	// offset = initOffset
+	//b := bytes[offset]
+	//offset++
+	var b byte
+	b, err = readBytes(conn, bytes, 1)
+	if err != nil {
+		return
+	}
+	ret.Class = int(b >> 6)
+	ret.IsCompound = b&0x20 == 0x20
+	ret.Tag = int(b & 0x1f)
+
+	//	// If the bottom five bits are set, then the tag number is actually base 128
+	//	// encoded afterwards
+	//	if ret.tag == 0x1f {
+	//		ret.tag, err = parseBase128Int(conn, bytes)
+	//		if err != nil {
+	//			return
+	//		}
+	//	}
+	// We are expecting the LDAP sequence tag 0x30 as first byte
+	if b != 0x30 {
+		panic(fmt.Sprintf("Expecting 0x30 as first byte, but got %#x instead", b))
+	}
+
+	b, err = readBytes(conn, bytes, 1)
+	if err != nil {
+		return
+	}
+	if b&0x80 == 0 {
+		// The length is encoded in the bottom 7 bits.
+		ret.Length = int(b & 0x7f)
+	} else {
+		// Bottom 7 bits give the number of length bytes to follow.
+		numBytes := int(b & 0x7f)
+		if numBytes == 0 {
+			err = ldap.SyntaxError{"indefinite length found (not DER)"}
+			return
+		}
+		ret.Length = 0
+		for i := 0; i < numBytes; i++ {
+
+			b, err = readBytes(conn, bytes, 1)
+			if err != nil {
+				return
+			}
+			if ret.Length >= 1<<23 {
+				// We can't shift ret.length up without
+				// overflowing.
+				err = ldap.StructuralError{"length too large"}
+				return
+			}
+			ret.Length <<= 8
+			ret.Length |= int(b)
+			if ret.Length == 0 {
+				// DER requires that lengths be minimal.
+				err = ldap.StructuralError{"superfluous leading zeros in length"}
+				return
+			}
+		}
+	}
+
+	return
+}
+
+// Read "length" bytes from the connection
+// Append the read bytes to "bytes"
+// Return the last read byte
+func readBytes(conn *bufio.Reader, bytes *[]byte, length int) (b byte, err error) {
+	newbytes := make([]byte, length)
+	n, err := conn.Read(newbytes)
+	if n != length {
+		fmt.Errorf("%d bytes read instead of %d", n, length)
+	} else if err != nil {
+		return
+	}
+	*bytes = append(*bytes, newbytes...)
+	b = (*bytes)[len(*bytes)-1]
+	return
 }
