@@ -21,6 +21,7 @@ type client struct {
 	closing     chan bool
 	requestList map[int]*Message
 	mutex       sync.Mutex
+	writeDone   chan bool
 }
 
 func (c *client) GetConn() net.Conn {
@@ -59,13 +60,13 @@ func (c *client) serve() {
 	// buffered to 20 means that If client is slow to handler responses, Server
 	// Handlers will stop to send more respones
 	c.chanOut = make(chan ldap.LDAPMessage)
-
+	c.writeDone = make(chan bool)
 	// for each message in c.chanOut send it to client
 	go func() {
 		for msg := range c.chanOut {
 			c.writeMessage(msg)
 		}
-
+		close(c.writeDone)
 	}()
 
 	// Listen for server signal to shutdown
@@ -159,34 +160,29 @@ func (c *client) serve() {
 func (c *client) close() {
 	log.Printf("client %d close()", c.Numero)
 	close(c.closing)
-	log.Printf("client %d close() - closing signal sent", c.Numero)
 
 	// stop reading from client
 	c.rwc.SetReadDeadline(time.Now().Add(time.Millisecond))
 	log.Printf("client %d close() - stop reading from client", c.Numero)
-	// TODO: Send a Disconnection notification
 
 	// signals to all currently running request processor to stop
 	c.mutex.Lock()
 	for messageID, request := range c.requestList {
-		log.Printf("Client [%d] sent abandon signal to request[messageID = %d]", c.Numero, messageID)
+		log.Printf("Client %d close() - sent abandon signal to request[messageID = %d]", c.Numero, messageID)
 		go request.Abandon()
 	}
 	c.mutex.Unlock()
 	log.Printf("client %d close() - Abandon signal sent to processors", c.Numero)
 
-	// wait for all request processor to end
-	//log.Printf("waiting the end of current (%d) client's requests", c.Numero)
-	c.wg.Wait()
-	close(c.chanOut)
+	c.wg.Wait()      // wait for all current running request processor to end
+	close(c.chanOut) // No more message will be sent to client, close chanOUT
 	log.Printf("client [%d] request processors ended", c.Numero)
 
-	// close client connection
-	c.rwc.Close()
+	<-c.writeDone // Wait for the last message sent to be written
+	c.rwc.Close() // close client connection
 	log.Printf("client [%d] connection closed", c.Numero)
 
-	// signal to server that client shutdown is ok
-	c.srv.wg.Done()
+	c.srv.wg.Done() // signal to server that client shutdown is ok
 }
 
 func (c *client) writeMessage(m ldap.LDAPMessage) {

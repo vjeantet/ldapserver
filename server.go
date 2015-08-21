@@ -138,7 +138,7 @@ func (s *Server) newClient(rwc net.Conn) (c *client, err error) {
 // In either case, when the LDAP session is terminated.
 func (s *Server) Stop() {
 	close(s.chDone)
-	log.Print("waiting for clients shutdown...")
+	log.Print("gracefully closing client connections...")
 	s.wg.Wait()
-	log.Print("all client connections closed")
+	log.Print("all clients connection closed")
 }
