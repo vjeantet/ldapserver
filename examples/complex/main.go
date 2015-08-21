@@ -18,20 +18,35 @@ func main() {
 	//Create routes bindings
 	routes := ldap.NewRouteMux()
 	routes.NotFound(handleNotFound)
-	routes.Extended(handleStartTLS).RequestName(ldap.NoticeOfStartTLS)
 	routes.Abandon(handleAbandon)
 	routes.Bind(handleBind)
 	routes.Compare(handleCompare)
 	routes.Add(handleAdd)
 	routes.Delete(handleDelete)
-	routes.Extended(handleWhoAmI).RequestName(ldap.NoticeOfWhoAmI)
-	routes.Extended(handleExtended)
 	routes.Modify(handleModify)
-	routes.Search(handleSearchMyCompany).BaseDn("o=My Company, c=US")
-	routes.Search(handleSearch)
-	// routes.Search(handleSearchMyCompany)
 
-	//Attache routes to server
+	routes.Extended(handleStartTLS).
+		RequestName(ldap.NoticeOfStartTLS).Label("StartTLS")
+
+	routes.Extended(handleWhoAmI).
+		RequestName(ldap.NoticeOfWhoAmI).Label("Ext - WhoAmI")
+
+	routes.Extended(handleExtended).Label("Ext - Generic")
+
+	routes.Search(handleSearchDSE).
+		BaseDn("").
+		Scope(ldap.SearchRequestScopeBaseObject).
+		Filter("(objectclass=*)").
+		Label("Search - ROOT DSE")
+
+	routes.Search(handleSearchMyCompany).
+		BaseDn("o=My Company, c=US").
+		Scope(ldap.SearchRequestScopeBaseObject).
+		Label("Search - Compagny Root")
+
+	routes.Search(handleSearch).Label("Search - Generic")
+
+	//Attach routes to server
 	server.Handle(routes)
 
 	// listen on 10389 and serve
@@ -170,9 +185,42 @@ func handleWhoAmI(w ldap.ResponseWriter, m *ldap.Message) {
 	w.Write(res)
 }
 
+func handleSearchDSE(w ldap.ResponseWriter, m *ldap.Message) {
+	r := m.GetSearchRequest()
+
+	log.Printf("Request BaseDn=%s", r.BaseObject())
+	log.Printf("Request Filter=%s", r.Filter())
+	log.Printf("Request FilterString=%s", r.FilterString())
+	log.Printf("Request Attributes=%s", r.Attributes())
+	log.Printf("Request TimeLimit=%d", r.TimeLimit().Int())
+
+	e := ldap.NewSearchResultEntry("")
+	e.AddAttribute("vendorName", "Valère JEANTET")
+	e.AddAttribute("vendorVersion", "0.0.1")
+	e.AddAttribute("objectClass", "top", "extensibleObject")
+	e.AddAttribute("supportedLDAPVersion", "3")
+	e.AddAttribute("namingContexts", "o=My Company, c=US")
+	// e.AddAttribute("subschemaSubentry", "cn=schema")
+	// e.AddAttribute("namingContexts", "ou=system", "ou=schema", "dc=example,dc=com", "ou=config")
+	// e.AddAttribute("supportedFeatures", "1.3.6.1.4.1.4203.1.5.1")
+	// e.AddAttribute("supportedControl", "2.16.840.1.113730.3.4.3", "1.3.6.1.4.1.4203.1.10.1", "2.16.840.1.113730.3.4.2", "1.3.6.1.4.1.4203.1.9.1.4", "1.3.6.1.4.1.42.2.27.8.5.1", "1.3.6.1.4.1.4203.1.9.1.1", "1.3.6.1.4.1.4203.1.9.1.3", "1.3.6.1.4.1.4203.1.9.1.2", "1.3.6.1.4.1.18060.0.0.1", "2.16.840.1.113730.3.4.7", "1.2.840.113556.1.4.319")
+	// e.AddAttribute("supportedExtension", "1.3.6.1.4.1.1466.20036", "1.3.6.1.4.1.4203.1.11.1", "1.3.6.1.4.1.18060.0.1.5", "1.3.6.1.4.1.18060.0.1.3", "1.3.6.1.4.1.1466.20037")
+	// e.AddAttribute("supportedSASLMechanisms", "NTLM", "GSSAPI", "GSS-SPNEGO", "CRAM-MD5", "SIMPLE", "DIGEST-MD5")
+	// e.AddAttribute("entryUUID", "f290425c-8272-4e62-8a67-92b06f38dbf5")
+	w.Write(e)
+
+	res := ldap.NewSearchResultDoneResponse(ldap.LDAPResultSuccess)
+	w.Write(res)
+}
+
 func handleSearchMyCompany(w ldap.ResponseWriter, m *ldap.Message) {
 	r := m.GetSearchRequest()
 	log.Printf("handleSearchMyCompany - Request BaseDn=%s", r.BaseObject())
+
+	e := ldap.NewSearchResultEntry(string(r.BaseObject()))
+	e.AddAttribute("objectClass", "top", "organizationalUnit")
+	w.Write(e)
+
 	res := ldap.NewSearchResultDoneResponse(ldap.LDAPResultSuccess)
 	w.Write(res)
 }

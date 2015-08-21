@@ -2,7 +2,6 @@ package ldapserver
 
 import (
 	"log"
-	"reflect"
 
 	ldap "github.com/vjeantet/goldap/message"
 )
@@ -32,49 +31,75 @@ type RouteMux struct {
 }
 
 type route struct {
+	label     string
 	operation string
 	handler   HandlerFunc
 	exoName   string
 	sBasedn   string
+	uBasedn   bool
 	sFilter   string
+	uFilter   bool
+	sScope    int
+	uScope    bool
 }
 
 // Match return true when the *Message matches the route
 // conditions
 func (r *route) Match(m *Message) bool {
-	if reflect.TypeOf(m.ProtocolOp()).Name() != r.operation {
+	if m.ProtocolOpName() != r.operation {
 		return false
 	}
 
 	switch v := m.ProtocolOp().(type) {
 	case ldap.ExtendedRequest:
-		if "" != r.exoName {
-			if string(v.RequestName()) == r.exoName {
-				return true
-			}
+		if string(v.RequestName()) != r.exoName {
 			return false
 		}
+		return true
 
 	case ldap.SearchRequest:
-		if "" != r.sBasedn {
-			log.Printf("v.BaseObject() = %#v", v.BaseObject())
-			log.Printf("r.sBasedn = %#v", r.sBasedn)
-			if string(v.BaseObject()) == r.sBasedn {
-				return true
+		if r.uBasedn == true {
+			if string(v.BaseObject()) != r.sBasedn {
+				return false
 			}
-			return false
 		}
+
+		if r.uFilter == true {
+			if v.FilterString() != r.sFilter {
+				return false
+			}
+		}
+
+		if r.uScope == true {
+			if int(v.Scope()) != r.sScope {
+				return false
+			}
+		}
+		return true
 	}
 	return true
 }
 
+func (r *route) Label(label string) *route {
+	r.label = label
+	return r
+}
+
 func (r *route) BaseDn(dn string) *route {
 	r.sBasedn = dn
+	r.uBasedn = true
 	return r
 }
 
 func (r *route) Filter(pattern string) *route {
 	r.sFilter = pattern
+	r.uFilter = true
+	return r
+}
+
+func (r *route) Scope(scope int) *route {
+	r.sScope = scope
+	r.uScope = true
 	return r
 }
 
@@ -106,6 +131,13 @@ func (h *RouteMux) ServeLDAP(w ResponseWriter, r *Message) {
 			continue
 		}
 
+		if route.label != "" {
+			log.Printf("")
+			log.Printf(" ROUTE MATCH ; %s", route.label)
+			log.Printf("")
+			// log.Printf(" ROUTE MATCH ; %s", runtime.FuncForPC(reflect.ValueOf(route.handler).Pointer()).Name())
+		}
+
 		route.handler(w, r)
 		return
 	}
@@ -135,10 +167,11 @@ func (h *RouteMux) addRoute(r *route) {
 	h.routes = append(h.routes, r)
 }
 
-func (h *RouteMux) NotFound(handler HandlerFunc) {
+func (h *RouteMux) NotFound(handler HandlerFunc) *route {
 	route := &route{}
 	route.handler = handler
 	h.notFoundRoute = route
+	return route
 }
 
 func (h *RouteMux) Bind(handler HandlerFunc) *route {

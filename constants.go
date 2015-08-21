@@ -81,6 +81,10 @@ const (
 	ModifyRequestChangeOperationReplace = 2
 )
 
+const SearchRequestScopeBaseObject = 0
+const SearchRequestSingleLevel = 1
+const SearchRequestHomeSubtree = 2
+
 // Extended operation responseName and requestName
 const (
 	NoticeOfDisconnection   ldap.LDAPOID = "1.3.6.1.4.1.1466.2003"
