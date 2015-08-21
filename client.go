@@ -19,7 +19,8 @@ type client struct {
 	chanOut     chan ldap.LDAPMessage
 	wg          sync.WaitGroup
 	closing     bool
-	requestList map[int]Message
+	requestList map[int]*Message
+	mutex       sync.Mutex
 }
 
 func (c *client) GetConn() net.Conn {
@@ -34,7 +35,7 @@ func (c *client) SetConn(conn net.Conn) {
 
 func (c *client) GetMessageByID(messageID int) (*Message, bool) {
 	if requestToAbandon, ok := c.requestList[messageID]; ok {
-		return &requestToAbandon, true
+		return requestToAbandon, true
 	}
 	return nil, false
 }
@@ -89,7 +90,7 @@ func (c *client) serve() {
 		}
 	}()
 
-	c.requestList = make(map[int]Message)
+	c.requestList = make(map[int]*Message)
 
 	for {
 
@@ -167,10 +168,12 @@ func (c *client) close() {
 	// TODO: Send a Disconnection notification
 
 	// signals to all currently running request processor to stop
+	c.mutex.Lock()
 	for messageID, request := range c.requestList {
 		log.Printf("Client [%d] sent abandon signal to request[messageID = %d]", c.Numero, messageID)
 		go request.Abandon()
 	}
+	c.mutex.Unlock()
 
 	// wait for all request processor to end
 	//log.Printf("waiting the end of current (%d) client's requests", c.Numero)
@@ -221,12 +224,24 @@ func (c *client) ProcessRequestMessage(message ldap.LDAPMessage) {
 		Client:      c,
 	}
 
-	c.requestList[m.MessageID().Int()] = m
-	defer delete(c.requestList, m.MessageID().Int())
+	c.registerRequest(&m)
+	defer c.unregisterRequest(&m)
 
 	var w responseWriterImpl
 	w.chanOut = c.chanOut
 	w.messageID = m.MessageID().Int()
 
 	c.srv.Handler.ServeLDAP(w, &m)
+}
+
+func (c *client) registerRequest(m *Message) {
+	c.mutex.Lock()
+	c.requestList[m.MessageID().Int()] = m
+	c.mutex.Unlock()
+}
+
+func (c *client) unregisterRequest(m *Message) {
+	c.mutex.Lock()
+	delete(c.requestList, m.MessageID().Int())
+	c.mutex.Unlock()
 }
