@@ -82,7 +82,7 @@ func (c *client) serve() {
 
 				c.chanOut <- *m
 				c.wg.Done()
-				c.rwc.SetReadDeadline(time.Now().Add(time.Second))
+				c.rwc.SetReadDeadline(time.Now().Add(time.Millisecond))
 				return
 			case <-c.closing:
 				return
@@ -104,17 +104,13 @@ func (c *client) serve() {
 		//Read client input as a ASN1/BER binary message
 		messagePacket, err := readMessagePacket(c.br)
 		if err != nil {
-			log.Printf("Error readMessagePacket: %s", err)
+			if opErr, ok := err.(*net.OpError); ok && opErr.Timeout() {
+				log.Printf("Sorry client %d, i can not wait anymore (reading timeout) ! %s", c.Numero, err)
+			} else {
+				log.Printf("Error readMessagePacket: %s", err)
+			}
 			return
 		}
-		log.Printf("msg = %#v", messagePacket)
-		log.Printf("err = %#v", err)
-		// if client is in closing mode, drop message and exit
-		// FIX: this cause a race condition
-		// if c.closing == true {
-		// 	log.Print("one client message dropped !")
-		// 	return
-		// }
 
 		//Convert ASN1 binaryMessage to a ldap Message
 		message, err := messagePacket.readMessage()
@@ -166,7 +162,7 @@ func (c *client) close() {
 	log.Printf("client %d close() - closing signal sent", c.Numero)
 
 	// stop reading from client
-	c.rwc.SetReadDeadline(time.Now().Add(time.Second))
+	c.rwc.SetReadDeadline(time.Now().Add(time.Millisecond))
 	log.Printf("client %d close() - stop reading from client", c.Numero)
 	// TODO: Send a Disconnection notification
 

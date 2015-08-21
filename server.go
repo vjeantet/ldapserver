@@ -27,7 +27,9 @@ type Server struct {
 
 //NewServer return a LDAP Server
 func NewServer() *Server {
-	return &Server{}
+	return &Server{
+		chDone: make(chan bool),
+	}
 }
 
 // Handle registers the handler for the server.
@@ -70,7 +72,6 @@ func (s *Server) serve() error {
 		log.Panicln("No LDAP Request Handler defined")
 	}
 
-	s.chDone = make(chan bool)
 	i := 0
 
 	for {
