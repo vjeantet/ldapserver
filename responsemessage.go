@@ -1,57 +1,57 @@
 package ldapserver
 
-import roox "github.com/vjeantet/goldap/message"
+import ldap "github.com/vjeantet/goldap/message"
 
-func NewBindResponse(resultCode int) roox.BindResponse {
-	r := roox.BindResponse{}
+func NewBindResponse(resultCode int) ldap.BindResponse {
+	r := ldap.BindResponse{}
 	r.SetResultCode(resultCode)
 	return r
 }
 
-func NewResponse(resultCode int) roox.LDAPResult {
-	r := roox.LDAPResult{}
+func NewResponse(resultCode int) ldap.LDAPResult {
+	r := ldap.LDAPResult{}
 	r.SetResultCode(resultCode)
 	return r
 }
 
-func NewExtendedResponse(resultCode int) roox.ExtendedResponse {
-	r := roox.ExtendedResponse{}
+func NewExtendedResponse(resultCode int) ldap.ExtendedResponse {
+	r := ldap.ExtendedResponse{}
 	r.SetResultCode(resultCode)
 	return r
 }
 
-func NewCompareResponse(resultCode int) roox.CompareResponse {
-	r := roox.CompareResponse{}
+func NewCompareResponse(resultCode int) ldap.CompareResponse {
+	r := ldap.CompareResponse{}
 	r.SetResultCode(resultCode)
 	return r
 }
 
-func NewModifyResponse(resultCode int) roox.ModifyResponse {
-	r := roox.ModifyResponse{}
+func NewModifyResponse(resultCode int) ldap.ModifyResponse {
+	r := ldap.ModifyResponse{}
 	r.SetResultCode(resultCode)
 	return r
 }
 
-func NewDeleteResponse(resultCode int) roox.DelResponse {
-	r := roox.DelResponse{}
+func NewDeleteResponse(resultCode int) ldap.DelResponse {
+	r := ldap.DelResponse{}
 	r.SetResultCode(resultCode)
 	return r
 }
 
-func NewAddResponse(resultCode int) roox.AddResponse {
-	r := roox.AddResponse{}
+func NewAddResponse(resultCode int) ldap.AddResponse {
+	r := ldap.AddResponse{}
 	r.SetResultCode(resultCode)
 	return r
 }
 
-func NewSearchResultDoneResponse(resultCode int) roox.SearchResultDone {
-	r := roox.SearchResultDone{}
+func NewSearchResultDoneResponse(resultCode int) ldap.SearchResultDone {
+	r := ldap.SearchResultDone{}
 	r.SetResultCode(resultCode)
 	return r
 }
 
-func NewSearchResultEntry(objectname string) roox.SearchResultEntry {
-	r := roox.SearchResultEntry{}
+func NewSearchResultEntry(objectname string) ldap.SearchResultEntry {
+	r := ldap.SearchResultEntry{}
 	r.SetObjectName(objectname)
 	return r
 }

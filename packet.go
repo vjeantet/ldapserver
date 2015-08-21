@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 
-	roox "github.com/vjeantet/goldap/message"
+	ldap "github.com/vjeantet/goldap/message"
 )
 
 type messagePacket struct {
@@ -21,7 +21,7 @@ func readMessagePacket(br *bufio.Reader) (*messagePacket, error) {
 	return messagePacket, err
 }
 
-func (msg *messagePacket) readMessage() (m roox.LDAPMessage, err error) {
+func (msg *messagePacket) readMessage() (m ldap.LDAPMessage, err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = fmt.Errorf("invalid packet received hex=%x, %#v", msg.bytes, r)
@@ -31,14 +31,14 @@ func (msg *messagePacket) readMessage() (m roox.LDAPMessage, err error) {
 	return decodeMessage(msg.bytes)
 }
 
-func decodeMessage(bytes []byte) (ret roox.LDAPMessage, err error) {
+func decodeMessage(bytes []byte) (ret ldap.LDAPMessage, err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			err = errors.New(fmt.Sprintf("%s", e))
 		}
 	}()
 	zero := 0
-	ret, err = roox.ReadLDAPMessage(roox.NewBytes(zero, bytes))
+	ret, err = ldap.ReadLDAPMessage(ldap.NewBytes(zero, bytes))
 	return
 }
 
@@ -46,7 +46,7 @@ func decodeMessage(bytes []byte) (ret roox.LDAPMessage, err error) {
 
 func readLdapMessageBytes(br *bufio.Reader) (ret *[]byte, err error) {
 	var bytes []byte
-	var tagAndLength roox.TagAndLength
+	var tagAndLength ldap.TagAndLength
 	tagAndLength, err = readTagAndLength(br, &bytes)
 	if err != nil {
 		return
@@ -59,7 +59,7 @@ func readLdapMessageBytes(br *bufio.Reader) (ret *[]byte, err error) {
 // into a byte slice. It returns the parsed data and the new offset. SET and
 // SET OF (tag 17) are mapped to SEQUENCE and SEQUENCE OF (tag 16) since we
 // don't distinguish between ordered and unordered objects in this code.
-func readTagAndLength(conn *bufio.Reader, bytes *[]byte) (ret roox.TagAndLength, err error) {
+func readTagAndLength(conn *bufio.Reader, bytes *[]byte) (ret ldap.TagAndLength, err error) {
 	// offset = initOffset
 	//b := bytes[offset]
 	//offset++
@@ -96,7 +96,7 @@ func readTagAndLength(conn *bufio.Reader, bytes *[]byte) (ret roox.TagAndLength,
 		// Bottom 7 bits give the number of length bytes to follow.
 		numBytes := int(b & 0x7f)
 		if numBytes == 0 {
-			err = roox.SyntaxError{"indefinite length found (not DER)"}
+			err = ldap.SyntaxError{"indefinite length found (not DER)"}
 			return
 		}
 		ret.Length = 0
@@ -109,14 +109,14 @@ func readTagAndLength(conn *bufio.Reader, bytes *[]byte) (ret roox.TagAndLength,
 			if ret.Length >= 1<<23 {
 				// We can't shift ret.length up without
 				// overflowing.
-				err = roox.StructuralError{"length too large"}
+				err = ldap.StructuralError{"length too large"}
 				return
 			}
 			ret.Length <<= 8
 			ret.Length |= int(b)
 			if ret.Length == 0 {
 				// DER requires that lengths be minimal.
-				err = roox.StructuralError{"superfluous leading zeros in length"}
+				err = ldap.StructuralError{"superfluous leading zeros in length"}
 				return
 			}
 		}

@@ -4,7 +4,7 @@ import (
 	"log"
 	"reflect"
 
-	roox "github.com/vjeantet/goldap/message"
+	ldap "github.com/vjeantet/goldap/message"
 )
 
 // Constant to LDAP Request protocol Type names
@@ -47,7 +47,7 @@ func (r *route) Match(m *Message) bool {
 	}
 
 	switch v := m.ProtocolOp().(type) {
-	case roox.ExtendedRequest:
+	case ldap.ExtendedRequest:
 		if "" != r.exoName {
 			if string(v.RequestName()) == r.exoName {
 				return true
@@ -55,7 +55,7 @@ func (r *route) Match(m *Message) bool {
 			return false
 		}
 
-	case roox.SearchRequest:
+	case ldap.SearchRequest:
 		if "" != r.sBasedn {
 			log.Printf("v.BaseObject() = %#v", v.BaseObject())
 			log.Printf("r.sBasedn = %#v", r.sBasedn)
@@ -78,7 +78,7 @@ func (r *route) Filter(pattern string) *route {
 	return r
 }
 
-func (r *route) RequestName(name roox.LDAPOID) *route {
+func (r *route) RequestName(name ldap.LDAPOID) *route {
 	r.exoName = string(name)
 	return r
 }
@@ -112,7 +112,7 @@ func (h *RouteMux) ServeLDAP(w ResponseWriter, r *Message) {
 
 	// Catch a AbandonRequest not handled by user
 	switch v := r.ProtocolOp().(type) {
-	case roox.AbandonRequest:
+	case ldap.AbandonRequest:
 		// retreive the request to abandon, and send a abort signal to it
 		if requestToAbandon, ok := r.Client.GetMessageByID(int(v)); ok {
 			requestToAbandon.Abandon()

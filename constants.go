@@ -1,6 +1,6 @@
 package ldapserver
 
-import roox "github.com/vjeantet/goldap/message"
+import ldap "github.com/vjeantet/goldap/message"
 
 // LDAP Application Codes
 const (
@@ -83,10 +83,10 @@ const (
 
 // Extended operation responseName and requestName
 const (
-	NoticeOfDisconnection   roox.LDAPOID = "1.3.6.1.4.1.1466.2003"
-	NoticeOfCancel          roox.LDAPOID = "1.3.6.1.1.8"
-	NoticeOfStartTLS        roox.LDAPOID = "1.3.6.1.4.1.1466.20037"
-	NoticeOfWhoAmI          roox.LDAPOID = "1.3.6.1.4.1.4203.1.11.3"
-	NoticeOfGetConnectionID roox.LDAPOID = "1.3.6.1.4.1.26027.1.6.2"
-	NoticeOfPasswordModify  roox.LDAPOID = "1.3.6.1.4.1.4203.1.11.1"
+	NoticeOfDisconnection   ldap.LDAPOID = "1.3.6.1.4.1.1466.2003"
+	NoticeOfCancel          ldap.LDAPOID = "1.3.6.1.1.8"
+	NoticeOfStartTLS        ldap.LDAPOID = "1.3.6.1.4.1.1466.20037"
+	NoticeOfWhoAmI          ldap.LDAPOID = "1.3.6.1.4.1.4203.1.11.3"
+	NoticeOfGetConnectionID ldap.LDAPOID = "1.3.6.1.4.1.26027.1.6.2"
+	NoticeOfPasswordModify  ldap.LDAPOID = "1.3.6.1.4.1.4203.1.11.1"
 )

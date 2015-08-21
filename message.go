@@ -3,11 +3,11 @@ package ldapserver
 import (
 	"fmt"
 
-	roox "github.com/vjeantet/goldap/message"
+	ldap "github.com/vjeantet/goldap/message"
 )
 
 type Message struct {
-	roox.LDAPMessage
+	ldap.LDAPMessage
 	Client *client
 	Done   chan bool
 }
@@ -22,34 +22,34 @@ func (m *Message) Abandon() {
 	m.Done <- true
 }
 
-func (m *Message) GetAbandonRequest() roox.AbandonRequest {
-	return m.ProtocolOp().(roox.AbandonRequest)
+func (m *Message) GetAbandonRequest() ldap.AbandonRequest {
+	return m.ProtocolOp().(ldap.AbandonRequest)
 }
 
-func (m *Message) GetSearchRequest() roox.SearchRequest {
-	return m.ProtocolOp().(roox.SearchRequest)
+func (m *Message) GetSearchRequest() ldap.SearchRequest {
+	return m.ProtocolOp().(ldap.SearchRequest)
 }
 
-func (m *Message) GetBindRequest() roox.BindRequest {
-	return m.ProtocolOp().(roox.BindRequest)
+func (m *Message) GetBindRequest() ldap.BindRequest {
+	return m.ProtocolOp().(ldap.BindRequest)
 }
 
-func (m *Message) GetAddRequest() roox.AddRequest {
-	return m.ProtocolOp().(roox.AddRequest)
+func (m *Message) GetAddRequest() ldap.AddRequest {
+	return m.ProtocolOp().(ldap.AddRequest)
 }
 
-func (m *Message) GetDeleteRequest() roox.DelRequest {
-	return m.ProtocolOp().(roox.DelRequest)
+func (m *Message) GetDeleteRequest() ldap.DelRequest {
+	return m.ProtocolOp().(ldap.DelRequest)
 }
 
-func (m *Message) GetModifyRequest() roox.ModifyRequest {
-	return m.ProtocolOp().(roox.ModifyRequest)
+func (m *Message) GetModifyRequest() ldap.ModifyRequest {
+	return m.ProtocolOp().(ldap.ModifyRequest)
 }
 
-func (m *Message) GetCompareRequest() roox.CompareRequest {
-	return m.ProtocolOp().(roox.CompareRequest)
+func (m *Message) GetCompareRequest() ldap.CompareRequest {
+	return m.ProtocolOp().(ldap.CompareRequest)
 }
 
-func (m *Message) GetExtendedRequest() roox.ExtendedRequest {
-	return m.ProtocolOp().(roox.ExtendedRequest)
+func (m *Message) GetExtendedRequest() ldap.ExtendedRequest {
+	return m.ProtocolOp().(ldap.ExtendedRequest)
 }
