@@ -29,6 +29,7 @@ func main() {
 	routes.Modify(handleModify)
 	routes.Search(handleSearchMyCompany).BaseDn("o=My Company, c=US")
 	routes.Search(handleSearch)
+	// routes.Search(handleSearchMyCompany)
 
 	//Attache routes to server
 	server.Handle(routes)
@@ -50,12 +51,13 @@ func handleNotFound(w ldap.ResponseWriter, r *ldap.Message) {
 	switch r.ProtocolOpType() {
 	case ldap.ApplicationBindRequest:
 		res := ldap.NewBindResponse(ldap.LDAPResultSuccess)
-		res.DiagnosticMessage = "Default binding behavior set to return Success"
+		res.SetDiagnosticMessage("Default binding behavior set to return Success")
+
 		w.Write(res)
 
 	default:
 		res := ldap.NewResponse(ldap.LDAPResultUnwillingToPerform)
-		res.DiagnosticMessage = "Operation not implemented by server"
+		res.SetDiagnosticMessage("Operation not implemented by server")
 		w.Write(res)
 	}
 }
@@ -78,11 +80,11 @@ func handleBind(w ldap.ResponseWriter, m *ldap.Message) {
 			return
 		}
 		log.Printf("Bind failed User=%s, Pass=%#v", string(r.Name()), r.Authentication())
-		res.ResultCode = ldap.LDAPResultInvalidCredentials
-		res.DiagnosticMessage = "invalid credentials"
+		res.SetResultCode(ldap.LDAPResultInvalidCredentials)
+		res.SetDiagnosticMessage("invalid credentials")
 	} else {
-		res.ResultCode = ldap.LDAPResultUnwillingToPerform
-		res.DiagnosticMessage = "Authentication choice not supported"
+		res.SetResultCode(ldap.LDAPResultUnwillingToPerform)
+		res.SetDiagnosticMessage("Authentication choice not supported")
 	}
 
 	w.Write(res)
@@ -191,8 +193,7 @@ func handleSearch(w ldap.ResponseWriter, m *ldap.Message) {
 	default:
 	}
 
-	e := ldap.NewSearchResultEntry()
-	e.SetDn("cn=Valere JEANTET, " + string(r.BaseObject()))
+	e := ldap.NewSearchResultEntry("cn=Valere JEANTET, " + string(r.BaseObject()))
 	e.AddAttribute("mail", "valere.jeantet@gmail.com", "mail@vjeantet.fr")
 	e.AddAttribute("company", "SODADI")
 	e.AddAttribute("department", "DSI/SEC")
@@ -202,8 +203,7 @@ func handleSearch(w ldap.ResponseWriter, m *ldap.Message) {
 	e.AddAttribute("cn", "Valère JEANTET")
 	w.Write(e)
 
-	e = ldap.NewSearchResultEntry()
-	e.SetDn("cn=Claire Thomas, " + string(r.BaseObject()))
+	e = ldap.NewSearchResultEntry("cn=Claire Thomas, " + string(r.BaseObject()))
 	e.AddAttribute("mail", "claire.thomas@gmail.com")
 	e.AddAttribute("cn", "Claire THOMAS")
 	w.Write(e)
@@ -259,13 +259,13 @@ func handleStartTLS(w ldap.ResponseWriter, m *ldap.Message) {
 	tlsconfig, _ := getTLSconfig()
 	tlsConn := tls.Server(m.Client.GetConn(), tlsconfig)
 	res := ldap.NewExtendedResponse(ldap.LDAPResultSuccess)
-	res.ResponseName = string(ldap.NoticeOfStartTLS)
+	res.SetResponseName(ldap.NoticeOfStartTLS)
 	w.Write(res)
 
 	if err := tlsConn.Handshake(); err != nil {
 		log.Printf("StartTLS Handshake error %v", err)
-		res.DiagnosticMessage = fmt.Sprintf("StartTLS Handshake error : \"%s\"", err.Error())
-		res.ResultCode = ldap.LDAPResultOperationsError
+		res.SetDiagnosticMessage(fmt.Sprintf("StartTLS Handshake error : \"%s\"", err.Error()))
+		res.SetResultCode(ldap.LDAPResultOperationsError)
 		w.Write(res)
 		return
 	}

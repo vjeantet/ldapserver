@@ -92,4 +92,11 @@ ldap_start_tls($ds) ;
 	    echo "\n\tCompare false !";
 	}
 
+
+/* ### LDAP CLOSE / UNBIND ### */
+	
+	echo "\nUnbind " ;
+	ldap_unbind($ds) ;
+
+
 echo "\n" ;

@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"log"
 	"net"
-	"reflect"
 	"sync"
 	"time"
 
@@ -17,7 +16,7 @@ type client struct {
 	rwc         net.Conn
 	br          *bufio.Reader
 	bw          *bufio.Writer
-	chanOut     chan response
+	chanOut     chan roox.LDAPMessage
 	wg          sync.WaitGroup
 	closing     bool
 	requestList map[int]Message
@@ -57,12 +56,12 @@ func (c *client) serve() {
 	// Create the ldap response queue to be writted to client (buffered to 20)
 	// buffered to 20 means that If client is slow to handler responses, Server
 	// Handlers will stop to send more respones
-	c.chanOut = make(chan response)
+	c.chanOut = make(chan roox.LDAPMessage)
 
 	// for each message in c.chanOut send it to client
 	go func() {
 		for msg := range c.chanOut {
-			c.writeLdapResult(msg)
+			c.writeMessage(msg)
 		}
 
 	}()
@@ -73,9 +72,12 @@ func (c *client) serve() {
 			select {
 			case <-c.srv.chDone: // server signals shutdown process
 				r := NewExtendedResponse(LDAPResultUnwillingToPerform)
-				r.DiagnosticMessage = "server is about to stop"
-				r.ResponseName = string(NoticeOfDisconnection)
-				c.chanOut <- r
+				r.SetDiagnosticMessage("server is about to stop")
+				r.SetResponseName(NoticeOfDisconnection)
+
+				m := roox.NewLDAPMessageWithProtocolOp(r)
+
+				c.chanOut <- *m
 				c.rwc.SetReadDeadline(time.Now().Add(time.Second))
 				return
 			default:
@@ -184,10 +186,10 @@ func (c *client) close() {
 	c.srv.wg.Done()
 }
 
-func (c *client) writeLdapResult(lr response) {
-	data := newMessagePacket(lr).Bytes()
-	log.Printf(">>> %d - %s - hex=%x", c.Numero, reflect.TypeOf(lr).Elem().Name(), data)
-	c.bw.Write(data)
+func (c *client) writeMessage(m roox.LDAPMessage) {
+	data, _ := m.Write()
+	log.Printf(">>> %d - %s - hex=%x", c.Numero, m.ProtocolOpName(), data.Bytes())
+	c.bw.Write(data.Bytes())
 	c.bw.Flush()
 }
 
@@ -195,17 +197,18 @@ func (c *client) writeLdapResult(lr response) {
 // construct an LDAP response.
 type ResponseWriter interface {
 	// Write writes the LDAPResponse to the connection as part of an LDAP reply.
-	Write(lr response)
+	Write(po roox.ProtocolOp)
 }
 
 type responseWriterImpl struct {
-	chanOut   chan response
+	chanOut   chan roox.LDAPMessage
 	messageID int
 }
 
-func (w responseWriterImpl) Write(lr response) {
-	lr.SetMessageID(w.messageID)
-	w.chanOut <- lr
+func (w responseWriterImpl) Write(po roox.ProtocolOp) {
+	m := roox.NewLDAPMessageWithProtocolOp(po)
+	m.SetMessageID(w.messageID)
+	w.chanOut <- *m
 }
 
 func (c *client) ProcessRequestMessage(message roox.LDAPMessage) {

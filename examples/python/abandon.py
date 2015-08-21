@@ -52,7 +52,7 @@ if __name__ == "__main__":
     parser = optparse.OptionParser()
 
     parser.add_option('-H', dest='ldapuri', default="ldap://127.0.0.1:10389")
-    parser.add_option('-D', dest='binddn', default="myLogin")
+    parser.add_option('-D', dest='binddn', default="login")
     parser.add_option('-w', dest='passwd', default="pass")
     parser.add_option('-b', dest='searchbase', action='append')
     parser.add_option('-l', dest='logconfig', default='abandon.ini')

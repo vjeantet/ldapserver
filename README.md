@@ -14,8 +14,10 @@ The package supports
 * Basic request routing inspired by [net/http ServeMux](http://golang.org/pkg/net/http/#ServeMux)
 
 # Default behaviors
-If no AbandonRequest route exists, the package will handle it. (signal sent to message.Done chan)
+## Abandon request
+If you don't set a route to handle AbandonRequest, the package will handle it for you. (signal sent to message.Done chan)
 
+## No Route Found
 When no route matches the request, the server will first try to call a special *NotFound* route, if nothing is specified, it will return an *UnwillingToResponse* Error code (53)
 
 Feel free to contribute, comment :)
@@ -36,16 +38,15 @@ import (
 )
 
 func main() {
-	//LDAP handlers routes
-	routes := ldap.NewRouteMux()
-	routes.Bind(handleBind)
-
 	//Create a new LDAP Server
 	server := ldap.NewServer()
+
+	routes := ldap.NewRouteMux()
+	routes.Bind(handleBind)
 	server.Handle(routes)
 
 	// listen on 10389
-	go server.ListenAndServe(":10389")
+	go server.ListenAndServe("127.0.0.1:10389")
 
 	// When CTRL+C, SIGINT and SIGTERM signal occurs
 	// Then stop server gracefully
@@ -53,19 +54,23 @@ func main() {
 	signal.Notify(ch, syscall.SIGINT, syscall.SIGTERM)
 	<-ch
 	close(ch)
+
 	server.Stop()
 }
 
+// handleBind return Success if login == mysql
 func handleBind(w ldap.ResponseWriter, m *ldap.Message) {
 	r := m.GetBindRequest()
 	res := ldap.NewBindResponse(ldap.LDAPResultSuccess)
 
-	if string(r.GetLogin()) == "myLogin" {
+	if string(r.Name()) == "myLogin" {
 		w.Write(res)
 		return
 	}
 
-	res.ResultCode = ldap.LDAPResultInvalidCredentials
+	log.Printf("Bind failed User=%s, Pass=%s", string(r.Name()), string(r.AuthenticationSimple()))
+	res.SetResultCode(ldap.LDAPResultInvalidCredentials)
+	res.SetDiagnosticMessage("invalid credentials")
 	w.Write(res)
 }
 ```
