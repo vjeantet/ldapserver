@@ -20,7 +20,7 @@ type Server struct {
 	// If it returns non-nil, the connection is closed.
 	OnNewConnection func(c net.Conn) error
 
-	// Handler handle ldap message received by client
+	// Handler handles ldap message received from client
 	// it SHOULD "implement" RequestHandler interface
 	Handler Handler
 }
@@ -84,7 +84,7 @@ func (s *Server) serve() error {
 		}
 
 		rw, err := s.Listener.Accept()
-		// rw.SetDeadline(time.Now().Add(1e9))
+
 		if s.ReadTimeout != 0 {
 			rw.SetReadDeadline(time.Now().Add(s.ReadTimeout))
 		}

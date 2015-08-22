@@ -31,16 +31,18 @@ type RouteMux struct {
 }
 
 type route struct {
-	label     string
-	operation string
-	handler   HandlerFunc
-	exoName   string
-	sBasedn   string
-	uBasedn   bool
-	sFilter   string
-	uFilter   bool
-	sScope    int
-	uScope    bool
+	label       string
+	operation   string
+	handler     HandlerFunc
+	exoName     string
+	sBasedn     string
+	uBasedn     bool
+	sFilter     string
+	uFilter     bool
+	sScope      int
+	uScope      bool
+	sAuthChoice string
+	uAuthChoice bool
 }
 
 // Match return true when the *Message matches the route
@@ -51,6 +53,14 @@ func (r *route) Match(m *Message) bool {
 	}
 
 	switch v := m.ProtocolOp().(type) {
+	case ldap.BindRequest:
+		if r.uAuthChoice == true {
+			if v.AuthenticationChoice() != r.sAuthChoice {
+				return false
+			}
+		}
+		return true
+
 	case ldap.ExtendedRequest:
 		if string(v.RequestName()) != r.exoName {
 			return false
@@ -88,6 +98,12 @@ func (r *route) Label(label string) *route {
 func (r *route) BaseDn(dn string) *route {
 	r.sBasedn = dn
 	r.uBasedn = true
+	return r
+}
+
+func (r *route) AuthenticationChoice(choice string) *route {
+	r.sAuthChoice = choice
+	r.uAuthChoice = true
 	return r
 }
 
