@@ -2,6 +2,7 @@ package ldapserver
 
 import (
 	"log"
+	"strings"
 
 	ldap "github.com/vjeantet/goldap/message"
 )
@@ -55,7 +56,7 @@ func (r *route) Match(m *Message) bool {
 	switch v := m.ProtocolOp().(type) {
 	case ldap.BindRequest:
 		if r.uAuthChoice == true {
-			if v.AuthenticationChoice() != r.sAuthChoice {
+			if strings.ToLower(v.AuthenticationChoice()) != r.sAuthChoice {
 				return false
 			}
 		}
@@ -69,13 +70,13 @@ func (r *route) Match(m *Message) bool {
 
 	case ldap.SearchRequest:
 		if r.uBasedn == true {
-			if string(v.BaseObject()) != r.sBasedn {
+			if strings.ToLower(string(v.BaseObject())) != r.sBasedn {
 				return false
 			}
 		}
 
 		if r.uFilter == true {
-			if v.FilterString() != r.sFilter {
+			if strings.ToLower(v.FilterString()) != r.sFilter {
 				return false
 			}
 		}
@@ -96,19 +97,19 @@ func (r *route) Label(label string) *route {
 }
 
 func (r *route) BaseDn(dn string) *route {
-	r.sBasedn = dn
+	r.sBasedn = strings.ToLower(dn)
 	r.uBasedn = true
 	return r
 }
 
 func (r *route) AuthenticationChoice(choice string) *route {
-	r.sAuthChoice = choice
+	r.sAuthChoice = strings.ToLower(choice)
 	r.uAuthChoice = true
 	return r
 }
 
 func (r *route) Filter(pattern string) *route {
-	r.sFilter = pattern
+	r.sFilter = strings.ToLower(pattern)
 	r.uFilter = true
 	return r
 }
