@@ -16,7 +16,7 @@ type client struct {
 	rwc         net.Conn
 	br          *bufio.Reader
 	bw          *bufio.Writer
-	chanOut     chan ldap.LDAPMessage
+	chanOut     chan *ldap.LDAPMessage
 	wg          sync.WaitGroup
 	closing     chan bool
 	requestList map[int]*Message
@@ -59,7 +59,7 @@ func (c *client) serve() {
 	// Create the ldap response queue to be writted to client (buffered to 20)
 	// buffered to 20 means that If client is slow to handler responses, Server
 	// Handlers will stop to send more respones
-	c.chanOut = make(chan ldap.LDAPMessage)
+	c.chanOut = make(chan *ldap.LDAPMessage)
 	c.writeDone = make(chan bool)
 	// for each message in c.chanOut send it to client
 	go func() {
@@ -81,7 +81,7 @@ func (c *client) serve() {
 
 				m := ldap.NewLDAPMessageWithProtocolOp(r)
 
-				c.chanOut <- *m
+				c.chanOut <- m
 				c.wg.Done()
 				c.rwc.SetReadDeadline(time.Now().Add(time.Millisecond))
 				return
@@ -138,7 +138,7 @@ func (c *client) serve() {
 		if req, ok := message.ProtocolOp().(ldap.ExtendedRequest); ok {
 			if req.RequestName() == NoticeOfStartTLS {
 				c.wg.Add(1)
-				c.ProcessRequestMessage(message)
+				c.ProcessRequestMessage(&message)
 				continue
 			}
 		}
@@ -146,7 +146,7 @@ func (c *client) serve() {
 		// TODO: go/non go routine choice should be done in the ProcessRequestMessage
 		// not in the client.serve func
 		c.wg.Add(1)
-		go c.ProcessRequestMessage(message)
+		go c.ProcessRequestMessage(&message)
 	}
 
 }
@@ -185,7 +185,7 @@ func (c *client) close() {
 	c.srv.wg.Done() // signal to server that client shutdown is ok
 }
 
-func (c *client) writeMessage(m ldap.LDAPMessage) {
+func (c *client) writeMessage(m *ldap.LDAPMessage) {
 	data, _ := m.Write()
 	log.Printf(">>> %d - %s - hex=%x", c.Numero, m.ProtocolOpName(), data.Bytes())
 	c.bw.Write(data.Bytes())
@@ -200,17 +200,17 @@ type ResponseWriter interface {
 }
 
 type responseWriterImpl struct {
-	chanOut   chan ldap.LDAPMessage
+	chanOut   chan *ldap.LDAPMessage
 	messageID int
 }
 
 func (w responseWriterImpl) Write(po ldap.ProtocolOp) {
 	m := ldap.NewLDAPMessageWithProtocolOp(po)
 	m.SetMessageID(w.messageID)
-	w.chanOut <- *m
+	w.chanOut <- m
 }
 
-func (c *client) ProcessRequestMessage(message ldap.LDAPMessage) {
+func (c *client) ProcessRequestMessage(message *ldap.LDAPMessage) {
 	defer c.wg.Done()
 
 	var m Message
