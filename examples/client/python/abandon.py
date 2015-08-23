@@ -54,11 +54,11 @@ if __name__ == "__main__":
     parser.add_option('-H', dest='ldapuri', default="ldap://127.0.0.1:10389")
     parser.add_option('-D', dest='binddn', default="login")
     parser.add_option('-w', dest='passwd', default="pass")
-    parser.add_option('-b', dest='searchbase', action='append')
+    parser.add_option('-b', dest='searchbase', action='append',default="cn=fds,ou=tre")
     parser.add_option('-l', dest='logconfig', default='abandon.ini')
     parser.add_option('-t', dest='timeout', type="int", default=1)
     parser.add_option('-r', dest='retries', type="int", default=1)
-    parser.add_option('-f', dest='filterstr', type="string", default='*')
+    parser.add_option('-f', dest='filterstr', type="string", default='(objectclass=*)')
 
     opts, args = parser.parse_args()
 
