@@ -12,6 +12,7 @@ The package supports
 * Unbind request is implemented, but is handled internally to close the connection.
 * Graceful stopping
 * Basic request routing inspired by [net/http ServeMux](http://golang.org/pkg/net/http/#ServeMux)
+* Logger customisation (log interface)
 
 # Default behaviors
 ## Abandon request
@@ -38,6 +39,9 @@ import (
 )
 
 func main() {
+	//ldap logger
+	ldap.Logger = log.New(os.Stdout, "[server] ", log.LstdFlags)
+
 	//Create a new LDAP Server
 	server := ldap.NewServer()
 

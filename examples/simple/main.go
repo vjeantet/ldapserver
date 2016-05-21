@@ -12,6 +12,10 @@ import (
 )
 
 func main() {
+
+	//ldap logger
+	ldap.Logger = log.New(os.Stdout, "[server] ", log.LstdFlags)
+
 	//Create a new LDAP Server
 	server := ldap.NewServer()
 
@@ -38,7 +42,7 @@ func handleBind(w ldap.ResponseWriter, m *ldap.Message) {
 	res := ldap.NewBindResponse(ldap.LDAPResultSuccess)
 
 	if string(r.Name()) == "login" {
-		w.Write(res)
+		// w.Write(res)
 		return
 	}
 

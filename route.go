@@ -1,7 +1,6 @@
 package ldapserver
 
 import (
-	"log"
 	"strings"
 
 	ldap "github.com/vjeantet/goldap/message"
@@ -149,10 +148,10 @@ func (h *RouteMux) ServeLDAP(w ResponseWriter, r *Message) {
 		}
 
 		if route.label != "" {
-			log.Printf("")
-			log.Printf(" ROUTE MATCH ; %s", route.label)
-			log.Printf("")
-			// log.Printf(" ROUTE MATCH ; %s", runtime.FuncForPC(reflect.ValueOf(route.handler).Pointer()).Name())
+			Logger.Printf("")
+			Logger.Printf(" ROUTE MATCH ; %s", route.label)
+			Logger.Printf("")
+			// Logger.Printf(" ROUTE MATCH ; %s", runtime.FuncForPC(reflect.ValueOf(route.handler).Pointer()).Name())
 		}
 
 		route.handler(w, r)
