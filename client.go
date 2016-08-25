@@ -21,10 +21,15 @@ type client struct {
 	requestList map[int]*Message
 	mutex       sync.Mutex
 	writeDone   chan bool
+	rawData     []byte
 }
 
 func (c *client) GetConn() net.Conn {
 	return c.rwc
+}
+
+func (c *client) GetRaw() []byte {
+	return c.rawData
 }
 
 func (c *client) SetConn(conn net.Conn) {
@@ -42,6 +47,13 @@ func (c *client) GetMessageByID(messageID int) (*Message, bool) {
 
 func (c *client) Addr() net.Addr {
 	return c.rwc.RemoteAddr()
+}
+
+func (c *client) ReadPacket() (*messagePacket, error) {
+	mP, err := readMessagePacket(c.br)
+	c.rawData = make([]byte, len(mP.bytes))
+	copy(c.rawData, mP.bytes)
+	return mP, err
 }
 
 func (c *client) serve() {
@@ -102,7 +114,7 @@ func (c *client) serve() {
 		}
 
 		//Read client input as a ASN1/BER binary message
-		messagePacket, err := readMessagePacket(c.br)
+		messagePacket, err := c.ReadPacket()
 		if err != nil {
 			if opErr, ok := err.(*net.OpError); ok && opErr.Timeout() {
 				Logger.Printf("Sorry client %d, i can not wait anymore (reading timeout) ! %s", c.Numero, err)
