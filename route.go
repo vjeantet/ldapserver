@@ -3,7 +3,7 @@ package ldapserver
 import (
 	"strings"
 
-	ldap "github.com/vjeantet/goldap/message"
+	ldap "github.com/lor00x/goldap/message"
 )
 
 // Constant to LDAP Request protocol Type names
