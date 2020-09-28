@@ -91,7 +91,7 @@ func (s *Server) serve() error {
 			rw.SetWriteDeadline(time.Now().Add(s.WriteTimeout))
 		}
 		if nil != err {
-			if opErr, ok := err.(*net.OpError); ok && opErr.Timeout() {
+			if opErr, ok := err.(*net.OpError); ok || opErr.Timeout() {
 				continue
 			}
 			Logger.Println(err)
