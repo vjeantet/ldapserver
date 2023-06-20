@@ -7,6 +7,10 @@ import (
 	"time"
 )
 
+type HandlerSource interface {
+	GetHandler() Handler
+}
+
 // Server is an LDAP server.
 type Server struct {
 	Listener     net.Listener
@@ -21,19 +25,37 @@ type Server struct {
 
 	// Handler handles ldap message received from client
 	// it SHOULD "implement" RequestHandler interface
-	Handler Handler
+	Handler          Handler
+	useHandlerSource bool
+	handlerSource    HandlerSource
 }
 
-//NewServer return a LDAP Server
+// NewServer return a LDAP Server
 func NewServer() *Server {
 	return &Server{
 		chDone: make(chan bool),
 	}
 }
 
+// NewServer returns an LDAP Server, with a dedicated handler for each connection
+// different to the "Handler", this allows one struct (object) for each connection.
+// this is intented to pass information from one handle function to another, for
+// example, if Bind() fails, a flag may be set in the source to decline subsequent searches
+// (or limit them in scope).
+func NewServerWithHandlerSource(hs HandlerSource) *Server {
+	return &Server{
+		handlerSource:    hs,
+		useHandlerSource: true,
+		chDone:           make(chan bool),
+	}
+}
+
 // Handle registers the handler for the server.
 // If a handler already exists for pattern, Handle panics
 func (s *Server) Handle(h Handler) {
+	if s.useHandlerSource {
+		panic("LDAP: attempt to register handler and a handlersource")
+	}
 	if s.Handler != nil {
 		panic("LDAP: multiple Handler registrations")
 	}
@@ -44,7 +66,6 @@ func (s *Server) Handle(h Handler) {
 // calls Serve to handle requests on incoming connections.  If
 // s.Addr is blank, ":389" is used.
 func (s *Server) ListenAndServe(addr string, options ...func(*Server)) error {
-
 	if addr == "" {
 		addr = ":389"
 	}
@@ -67,7 +88,7 @@ func (s *Server) ListenAndServe(addr string, options ...func(*Server)) error {
 func (s *Server) serve() error {
 	defer s.Listener.Close()
 
-	if s.Handler == nil {
+	if s.Handler == nil && !s.useHandlerSource {
 		Logger.Panicln("No LDAP Request Handler defined")
 	}
 
@@ -121,6 +142,9 @@ func (s *Server) newClient(rwc net.Conn) (c *client, err error) {
 		rwc: rwc,
 		br:  bufio.NewReader(rwc),
 		bw:  bufio.NewWriter(rwc),
+	}
+	if s.useHandlerSource {
+		c.handler = s.handlerSource.GetHandler()
 	}
 	return c, nil
 }
