@@ -10,18 +10,20 @@ import (
 )
 
 type client struct {
-	Numero      int
-	srv         *Server
-	rwc         net.Conn
-	br          *bufio.Reader
-	bw          *bufio.Writer
-	chanOut     chan *ldap.LDAPMessage
-	wg          sync.WaitGroup
-	closing     chan bool
-	requestList map[int]*Message
-	mutex       sync.Mutex
-	writeDone   chan bool
-	rawData     []byte
+	Numero        int
+	srv           *Server
+	rwc           net.Conn
+	br            *bufio.Reader
+	bw            *bufio.Writer
+	chanOut       chan *ldap.LDAPMessage
+	wg            sync.WaitGroup
+	closing       chan bool
+	requestList   map[int]*Message
+	mutex         sync.Mutex
+	writeDone     chan bool
+	rawData       []byte
+	handler       Handler
+	hasOwnHandler bool
 }
 
 func (c *client) GetConn() net.Conn {
@@ -238,7 +240,11 @@ func (c *client) ProcessRequestMessage(message *ldap.LDAPMessage) {
 	w.chanOut = c.chanOut
 	w.messageID = m.MessageID().Int()
 
-	c.srv.Handler.ServeLDAP(w, &m)
+	if c.handler != nil {
+		c.handler.ServeLDAP(w, &m)
+	} else {
+		c.srv.Handler.ServeLDAP(w, &m)
+	}
 }
 
 func (c *client) registerRequest(m *Message) {
