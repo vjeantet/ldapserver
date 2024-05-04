@@ -22,6 +22,11 @@ type client struct {
 	mutex       sync.Mutex
 	writeDone   chan bool
 	rawData     []byte
+	IsAuthenticated bool
+	IsGlobalAdmin 	bool
+	IsOrgAdmin 	bool
+	OrgName		string
+	UserName	string
 }
 
 func (c *client) GetConn() net.Conn {
