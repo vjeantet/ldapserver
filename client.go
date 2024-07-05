@@ -92,7 +92,11 @@ func (c *client) serve() {
 
 				m := ldap.NewLDAPMessageWithProtocolOp(r)
 
-				c.chanOut <- m
+				select {
+					case <-c.chanOut:
+					default:
+						c.chanOut <- m
+				}
 				c.wg.Done()
 				c.rwc.SetReadDeadline(time.Now().Add(time.Millisecond))
 				return
