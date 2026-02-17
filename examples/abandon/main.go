@@ -43,7 +43,7 @@ func handleSearch(w ldap.ResponseWriter, m *ldap.Message) {
 	for {
 		select {
 		case <-m.Done:
-			log.Printf("Leaving handleSearch... for msgid=%d", m.MessageID)
+			log.Printf("Leaving handleSearch... for msgid=%d", m.MessageID())
 			return
 		default:
 		}
