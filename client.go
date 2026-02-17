@@ -41,7 +41,10 @@ func (c *client) SetConn(conn net.Conn) {
 }
 
 func (c *client) GetMessageByID(messageID int) (*Message, bool) {
-	if requestToAbandon, ok := c.requestList[messageID]; ok {
+	c.mutex.Lock()
+	requestToAbandon, ok := c.requestList[messageID]
+	c.mutex.Unlock()
+	if ok {
 		return requestToAbandon, true
 	}
 	return nil, false
