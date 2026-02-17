@@ -1,10 +1,13 @@
 package ldapserver
 
 import (
+	"encoding/asn1"
 	"net"
 	"os"
 	"testing"
+	"time"
 
+	ber "github.com/go-asn1-ber/asn1-ber"
 	goldap "github.com/go-ldap/ldap/v3"
 )
 
@@ -41,6 +44,7 @@ func startTestServer(t *testing.T) (addr string, stop func()) {
 	routes.Search(handleSearchReferenceTest).BaseDn("dc=ref,dc=example")
 	routes.Search(handleSearchReferralTest).BaseDn("dc=redirect,dc=example")
 	routes.Search(handleSearchControlsTest).BaseDn("dc=controls,dc=example")
+	routes.Search(handleSearchSlowTest).BaseDn("dc=slow,dc=example")
 	routes.Search(handleSearchTest)
 
 	server.Handle(routes)
@@ -189,6 +193,28 @@ func handleSearchReferralTest(w ResponseWriter, m *Message) {
 func handleSearchControlsTest(w ResponseWriter, m *Message) {
 	res := NewSearchResultDoneResponse(LDAPResultSuccess)
 	WriteWithControls(w, res, NewControl("1.2.3.4.5.6.7.8.9", false, nil))
+}
+
+func handleSearchSlowTest(w ResponseWriter, m *Message) {
+	// Block until canceled or timeout
+	select {
+	case <-m.Done:
+	case <-time.After(10 * time.Second):
+	}
+	res := NewSearchResultDoneResponse(LDAPResultCanceled)
+	w.Write(res)
+}
+
+// buildCancelValue constructs a BER packet for the requestValue of a Cancel
+// Extended Request (RFC 3909): SEQUENCE { cancelID INTEGER }.
+// The returned packet is tagged as [CONTEXT 1] (primitive) wrapping the raw
+// ASN.1 bytes, which is how goldap expects the requestValue field.
+func buildCancelValue(messageID int) *ber.Packet {
+	data, _ := asn1.Marshal(cancelRequestValue{CancelID: messageID})
+	pkt := ber.Encode(ber.ClassContext, ber.TypePrimitive, 1, nil, "requestValue")
+	pkt.Value = data
+	pkt.Data.Write(data)
+	return pkt
 }
 
 // --- Tests ---
@@ -639,5 +665,172 @@ func TestE2E_ResponseControls(t *testing.T) {
 	}
 	if !found {
 		t.Fatalf("expected control OID 1.2.3.4.5.6.7.8.9 not found, got: %v", sr.Controls)
+	}
+}
+
+func TestE2E_CancelNoSuchOperation(t *testing.T) {
+	addr, stop := startTestServer(t)
+	defer stop()
+
+	conn := dialAndBind(t, addr)
+	defer conn.Close()
+
+	// Cancel a messageID that does not exist
+	req := goldap.NewExtendedRequest("1.3.6.1.1.8", buildCancelValue(9999))
+	_, err := conn.Extended(req)
+	if err == nil {
+		t.Fatal("expected error for cancel of non-existent operation")
+	}
+	if !goldap.IsErrorWithCode(err, goldap.LDAPResultNoSuchOperation) {
+		t.Fatalf("expected NoSuchOperation (119), got: %v", err)
+	}
+}
+
+func TestE2E_CancelInProgressSearch(t *testing.T) {
+	addr, stop := startTestServer(t)
+	defer stop()
+
+	// go-ldap serializes requests on a single connection, so we cannot send
+	// a Cancel while a Search is blocking the read loop. Instead we use raw
+	// BER packets on a plain TCP connection.
+	rawConn, err := net.Dial("tcp", addr)
+	if err != nil {
+		t.Fatalf("raw dial: %v", err)
+	}
+	defer rawConn.Close()
+
+	// Helper: build and send a raw LDAP message envelope.
+	sendRaw := func(messageID int, appPacket *ber.Packet) {
+		env := ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "LDAP Message")
+		env.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, messageID, "messageID"))
+		env.AppendChild(appPacket)
+		rawConn.Write(env.Bytes())
+	}
+
+	// 1. Send a simple bind (messageID=1): [APPLICATION 0] { version=3, name="cn=test", simple="secret" }
+	bindReq := ber.Encode(ber.ClassApplication, ber.TypeConstructed, 0, nil, "BindRequest")
+	bindReq.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, 3, "version"))
+	bindReq.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, "cn=test", "name"))
+	bindReq.AppendChild(ber.NewString(ber.ClassContext, ber.TypePrimitive, 0, "secret", "simple"))
+	sendRaw(1, bindReq)
+
+	// Read the bind response
+	rawConn.SetReadDeadline(time.Now().Add(2 * time.Second))
+	_, err = ber.ReadPacket(rawConn)
+	if err != nil {
+		t.Fatalf("read bind response: %v", err)
+	}
+
+	// 2. Send a search on dc=slow,dc=example (messageID=2) - this will block server-side
+	searchReq := ber.Encode(ber.ClassApplication, ber.TypeConstructed, 3, nil, "SearchRequest")
+	searchReq.AppendChild(ber.NewString(ber.ClassUniversal, ber.TypePrimitive, ber.TagOctetString, "dc=slow,dc=example", "baseObject"))
+	searchReq.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagEnumerated, 2, "scope"))       // wholeSubtree
+	searchReq.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagEnumerated, 0, "derefAliases")) // neverDerefAliases
+	searchReq.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, 0, "sizeLimit"))
+	searchReq.AppendChild(ber.NewInteger(ber.ClassUniversal, ber.TypePrimitive, ber.TagInteger, 0, "timeLimit"))
+	searchReq.AppendChild(ber.NewBoolean(ber.ClassUniversal, ber.TypePrimitive, ber.TagBoolean, false, "typesOnly"))
+	// Filter: (objectclass=*) - present filter for "objectclass"
+	searchReq.AppendChild(ber.NewString(ber.ClassContext, ber.TypePrimitive, 7, "objectclass", "present"))
+	// Attributes: empty sequence
+	searchReq.AppendChild(ber.Encode(ber.ClassUniversal, ber.TypeConstructed, ber.TagSequence, nil, "attributes"))
+	sendRaw(2, searchReq)
+
+	// Give the search time to register on the server
+	time.Sleep(100 * time.Millisecond)
+
+	// 3. Send Cancel extended request for messageID=2 (messageID=3)
+	extReq := ber.Encode(ber.ClassApplication, ber.TypeConstructed, 23, nil, "ExtendedRequest")
+	extReq.AppendChild(ber.NewString(ber.ClassContext, ber.TypePrimitive, 0, "1.3.6.1.1.8", "requestName"))
+	extReq.AppendChild(buildCancelValue(2))
+	sendRaw(3, extReq)
+
+	// 4. Read responses. We expect:
+	//    - Cancel response (messageID=3) with resultCode = Canceled (118)
+	//    - Search done (messageID=2) with resultCode = Canceled (118)
+	rawConn.SetReadDeadline(time.Now().Add(2 * time.Second))
+
+	gotCancelResponse := false
+	gotSearchCanceled := false
+
+	for i := 0; i < 2; i++ {
+		pkt, err := ber.ReadPacket(rawConn)
+		if err != nil {
+			t.Fatalf("read response %d: %v", i, err)
+		}
+		if len(pkt.Children) < 2 {
+			t.Fatalf("response %d: expected at least 2 children, got %d", i, len(pkt.Children))
+		}
+		msgID := pkt.Children[0].Value.(int64)
+		opTag := pkt.Children[1].Tag
+
+		switch {
+		case msgID == 3 && opTag == 24: // ExtendedResponse for Cancel
+			// Decode resultCode from the first child of the ExtendedResponse
+			if len(pkt.Children[1].Children) < 1 {
+				t.Fatalf("cancel response: no children in ExtendedResponse")
+			}
+			resultCode := pkt.Children[1].Children[0].Value.(int64)
+			if resultCode != LDAPResultCanceled {
+				t.Fatalf("cancel response: expected resultCode %d (Canceled), got %d", LDAPResultCanceled, resultCode)
+			}
+			gotCancelResponse = true
+
+		case msgID == 2 && opTag == 5: // SearchResultDone
+			if len(pkt.Children[1].Children) < 1 {
+				t.Fatalf("search done: no children")
+			}
+			resultCode := pkt.Children[1].Children[0].Value.(int64)
+			if resultCode != LDAPResultCanceled {
+				t.Fatalf("search done: expected resultCode %d (Canceled), got %d", LDAPResultCanceled, resultCode)
+			}
+			gotSearchCanceled = true
+		}
+	}
+
+	if !gotCancelResponse {
+		t.Fatal("did not receive Cancel ExtendedResponse")
+	}
+	if !gotSearchCanceled {
+		t.Fatal("did not receive SearchResultDone with Canceled result code")
+	}
+}
+
+func TestE2E_CancelUserDefinedHandler(t *testing.T) {
+	// Set up a server with a custom Cancel handler that returns a specific
+	// diagnostic message, verifying it takes precedence over auto-handling.
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+
+	server := NewServer()
+	routes := NewRouteMux()
+
+	routes.Bind(handleBindTest)
+	routes.Cancel(func(w ResponseWriter, r *Message) {
+		res := NewExtendedResponse(LDAPResultNoSuchOperation)
+		res.SetDiagnosticMessage("custom cancel handler")
+		w.Write(res)
+	})
+
+	server.Handle(routes)
+	server.Listener = ln
+	go server.serve()
+	defer server.Stop()
+
+	conn := dialAndBind(t, ln.Addr().String())
+	defer conn.Close()
+
+	req := goldap.NewExtendedRequest("1.3.6.1.1.8", buildCancelValue(9999))
+	_, err = conn.Extended(req)
+	if err == nil {
+		t.Fatal("expected error from custom cancel handler")
+	}
+	ldapErr, ok := err.(*goldap.Error)
+	if !ok {
+		t.Fatalf("expected *ldap.Error, got %T: %v", err, err)
+	}
+	if ldapErr.ResultCode != goldap.LDAPResultNoSuchOperation {
+		t.Fatalf("expected NoSuchOperation (119), got code %d", ldapErr.ResultCode)
 	}
 }

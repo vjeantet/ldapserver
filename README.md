@@ -7,6 +7,7 @@
 
 The package supports
 * All basic LDAP Operations (bind, search, add, compare, modify, delete, extended)
+* Cancel extended operation (RFC 3909) with built-in handling
 * SSL
 * StartTLS
 * Unbind request is implemented, but is handled internally to close the connection.
@@ -19,6 +20,31 @@ The package supports
 # Default behaviors
 ## Abandon request
 If you don't set a route to handle AbandonRequest, the package will handle it for you. (signal sent to message.Done chan)
+
+## Cancel request (RFC 3909)
+The Cancel extended operation (OID `1.3.6.1.1.8`) is handled automatically by the server. When a client sends a Cancel request, the server:
+1. Decodes the target messageID from the request value
+2. Looks up the in-progress operation on the same connection
+3. Returns `NoSuchOperation` (119) if the target is not found
+4. Returns `CannotCancel` (121) for non-cancelable operations (Bind, Abandon, StartTLS, Cancel)
+5. Otherwise signals the target via `m.Done` and responds with `Canceled` (118)
+
+Handlers should check `m.Done` to detect both Cancel and Abandon signals:
+
+```Go
+select {
+case <-m.Done:
+    // Operation was canceled or abandoned
+    res := ldap.NewSearchResultDoneResponse(ldap.LDAPResultCanceled)
+    w.Write(res)
+    return
+default:
+}
+```
+
+To override the built-in behavior (e.g. for logging or authorization), register a custom handler with `routes.Cancel(handler)`.
+
+See the `examples/cancel` directory for a complete working example.
 
 ## No Route Found
 When no route matches the request, the server will first try to call a special *NotFound* route, if nothing is specified, it will return an *UnwillingToResponse* Error code (53)
@@ -138,6 +164,7 @@ go test -v -run TestE2E # run only the E2E tests
 - `TestValidBindRequest`, `TestValidBindAfterInvalidConnection` — raw protocol-level bind scenarios
 - `TestInvalidFirstByte_NoServerCrash`, `TestGarbageBytes_NoServerCrash` — server resilience to malformed input
 - `TestStopRefusesNewConnections` — confirms the listener is closed before `Stop()` returns
+- `TestParseCancelRequestValue*` — Cancel request value ASN.1 decoding (valid IDs, nil, invalid, trailing data, zero)
 
 ## End-to-end tests (`e2e_test.go`)
 
@@ -161,3 +188,6 @@ These tests start a full LDAP server (random port, all operations routed) and ex
 | `TestE2E_SearchResultReference` | Handler sends a `SearchResultReference`; client receives the referral URL |
 | `TestE2E_LDAPResultReferral` | Handler returns `SearchResultDone` with result code `Referral` (10) |
 | `TestE2E_ResponseControls` | Handler attaches a control via `WriteWithControls`; client sees the control OID |
+| `TestE2E_CancelNoSuchOperation` | Cancel a non-existent messageID returns `NoSuchOperation` (119) |
+| `TestE2E_CancelInProgressSearch` | Cancel a blocking search; both cancel response and search result return `Canceled` (118) |
+| `TestE2E_CancelUserDefinedHandler` | Custom `routes.Cancel(handler)` takes precedence over built-in auto-handling |

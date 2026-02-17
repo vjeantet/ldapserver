@@ -68,6 +68,11 @@ const (
 	LDAPResultAffectsMultipleDSAs          = 71
 	LDAPResultOther                        = 80
 
+	LDAPResultCanceled        = 118
+	LDAPResultNoSuchOperation = 119
+	LDAPResultTooLate         = 120
+	LDAPResultCannotCancel    = 121
+
 	ErrorNetwork         = 200
 	ErrorFilterCompile   = 201
 	ErrorFilterDecompile = 202

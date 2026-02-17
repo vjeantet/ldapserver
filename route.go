@@ -165,6 +165,11 @@ func (h *RouteMux) ServeLDAP(w ResponseWriter, r *Message) {
 		if requestToAbandon, ok := r.Client.GetMessageByID(int(v)); ok {
 			requestToAbandon.Abandon()
 		}
+	case ldap.ExtendedRequest:
+		if v.RequestName() == NoticeOfCancel {
+			handleCancel(w, r)
+			return
+		}
 	}
 
 	if h.notFoundRoute != nil {
@@ -252,4 +257,8 @@ func (h *RouteMux) Abandon(handler HandlerFunc) *route {
 	route.handler = handler
 	h.addRoute(route)
 	return route
+}
+
+func (h *RouteMux) Cancel(handler HandlerFunc) *route {
+	return h.Extended(handler).RequestName(NoticeOfCancel)
 }
