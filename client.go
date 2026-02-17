@@ -18,6 +18,7 @@ type client struct {
 	chanOut       chan *ldap.LDAPMessage
 	wg            sync.WaitGroup
 	closing       chan bool
+	shutdownDone  chan struct{}
 	requestList   map[int]*Message
 	mutex         sync.Mutex
 	writeDone     chan bool
@@ -65,12 +66,7 @@ func (c *client) serve() {
 	defer c.close()
 
 	c.closing = make(chan bool)
-	if onc := c.srv.OnNewConnection; onc != nil {
-		if err := onc(c.rwc); err != nil {
-			Logger.Printf("Erreur OnNewConnection: %s", err)
-			return
-		}
-	}
+	c.shutdownDone = make(chan struct{})
 
 	// Create the ldap response queue to be writted to client (buffered to 20)
 	// buffered to 20 means that If client is slow to handler responses, Server
@@ -87,10 +83,10 @@ func (c *client) serve() {
 
 	// Listen for server signal to shutdown
 	go func() {
+		defer close(c.shutdownDone)
 		for {
 			select {
 			case <-c.srv.chDone: // server signals shutdown process
-				c.wg.Add(1)
 				r := NewExtendedResponse(LDAPResultUnwillingToPerform)
 				r.SetDiagnosticMessage("server is about to stop")
 				r.SetResponseName(NoticeOfDisconnection)
@@ -98,7 +94,6 @@ func (c *client) serve() {
 				m := ldap.NewLDAPMessageWithProtocolOp(r)
 
 				c.chanOut <- m
-				c.wg.Done()
 				c.rwc.SetReadDeadline(time.Now().Add(time.Millisecond))
 				return
 			case <-c.closing:
@@ -106,6 +101,13 @@ func (c *client) serve() {
 			}
 		}
 	}()
+
+	if onc := c.srv.OnNewConnection; onc != nil {
+		if err := onc(c.rwc); err != nil {
+			Logger.Printf("Erreur OnNewConnection: %s", err)
+			return
+		}
+	}
 
 	c.requestList = make(map[int]*Message)
 
@@ -176,6 +178,7 @@ func (c *client) serve() {
 func (c *client) close() {
 	Logger.Printf("client %d close()", c.Numero)
 	close(c.closing)
+	<-c.shutdownDone // wait for shutdown-listener goroutine to finish
 
 	// stop reading from client
 	c.rwc.SetReadDeadline(time.Now().Add(time.Millisecond))
