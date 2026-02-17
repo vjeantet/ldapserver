@@ -229,6 +229,30 @@ func (w responseWriterImpl) Write(po ldap.ProtocolOp) {
 	w.chanOut <- m
 }
 
+func (w responseWriterImpl) writeWithControls(po ldap.ProtocolOp, controls ldap.Controls) {
+	m := ldap.NewLDAPMessageWithProtocolOp(po)
+	m.SetMessageID(w.messageID)
+	m.SetControls(controls.Pointer())
+	w.chanOut <- m
+}
+
+// controlsWriter is an optional interface for ResponseWriter implementations
+// that support attaching controls to an LDAP response message.
+type controlsWriter interface {
+	writeWithControls(po ldap.ProtocolOp, controls ldap.Controls)
+}
+
+// WriteWithControls writes an LDAP response with the given controls attached
+// to the LDAPMessage envelope. If the ResponseWriter does not support controls,
+// it falls back to w.Write(po).
+func WriteWithControls(w ResponseWriter, po ldap.ProtocolOp, controls ...ldap.Control) {
+	if cw, ok := w.(controlsWriter); ok {
+		cw.writeWithControls(po, ldap.Controls(controls))
+		return
+	}
+	w.Write(po)
+}
+
 func (c *client) ProcessRequestMessage(message *ldap.LDAPMessage) {
 	defer c.wg.Done()
 

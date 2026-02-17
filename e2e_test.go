@@ -38,6 +38,9 @@ func startTestServer(t *testing.T) (addr string, stop func()) {
 		BaseDn("").
 		Scope(SearchRequestScopeBaseObject).
 		Filter("(objectclass=*)")
+	routes.Search(handleSearchReferenceTest).BaseDn("dc=ref,dc=example")
+	routes.Search(handleSearchReferralTest).BaseDn("dc=redirect,dc=example")
+	routes.Search(handleSearchControlsTest).BaseDn("dc=controls,dc=example")
 	routes.Search(handleSearchTest)
 
 	server.Handle(routes)
@@ -167,6 +170,25 @@ func handleSearchTest(w ResponseWriter, m *Message) {
 
 	res := NewSearchResultDoneResponse(LDAPResultSuccess)
 	w.Write(res)
+}
+
+func handleSearchReferenceTest(w ResponseWriter, m *Message) {
+	ref := NewSearchResultReference("ldap://other.example/dc=ref,dc=example")
+	w.Write(ref)
+
+	res := NewSearchResultDoneResponse(LDAPResultSuccess)
+	w.Write(res)
+}
+
+func handleSearchReferralTest(w ResponseWriter, m *Message) {
+	res := NewSearchResultDoneResponse(LDAPResultReferral)
+	res.SetReferral(NewReferral("ldap://alt.example/dc=redirect,dc=example"))
+	w.Write(res)
+}
+
+func handleSearchControlsTest(w ResponseWriter, m *Message) {
+	res := NewSearchResultDoneResponse(LDAPResultSuccess)
+	WriteWithControls(w, res, NewControl("1.2.3.4.5.6.7.8.9", false, nil))
 }
 
 // --- Tests ---
@@ -519,5 +541,103 @@ func TestE2E_FullSequence(t *testing.T) {
 	}
 	if len(sr.Entries) != 2 {
 		t.Fatalf("expected 2 entries, got %d", len(sr.Entries))
+	}
+}
+
+func TestE2E_SearchResultReference(t *testing.T) {
+	addr, stop := startTestServer(t)
+	defer stop()
+
+	conn := dialAndBind(t, addr)
+	defer conn.Close()
+
+	req := goldap.NewSearchRequest(
+		"dc=ref,dc=example",
+		goldap.ScopeWholeSubtree,
+		goldap.NeverDerefAliases,
+		0, 0, false,
+		"(objectclass=*)",
+		[]string{},
+		nil,
+	)
+
+	sr, err := conn.Search(req)
+	if err != nil {
+		t.Fatalf("search: %v", err)
+	}
+	if len(sr.Referrals) == 0 {
+		t.Fatal("expected at least one referral in search result")
+	}
+	found := false
+	for _, ref := range sr.Referrals {
+		if ref == "ldap://other.example/dc=ref,dc=example" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected referral URL not found, got: %v", sr.Referrals)
+	}
+}
+
+func TestE2E_LDAPResultReferral(t *testing.T) {
+	addr, stop := startTestServer(t)
+	defer stop()
+
+	conn := dialAndBind(t, addr)
+	defer conn.Close()
+
+	req := goldap.NewSearchRequest(
+		"dc=redirect,dc=example",
+		goldap.ScopeWholeSubtree,
+		goldap.NeverDerefAliases,
+		0, 0, false,
+		"(objectclass=*)",
+		[]string{},
+		nil,
+	)
+
+	_, err := conn.Search(req)
+	if err == nil {
+		t.Fatal("expected error for referral result code")
+	}
+	if !goldap.IsErrorWithCode(err, goldap.LDAPResultReferral) {
+		t.Fatalf("expected LDAPResultReferral, got: %v", err)
+	}
+}
+
+func TestE2E_ResponseControls(t *testing.T) {
+	addr, stop := startTestServer(t)
+	defer stop()
+
+	conn := dialAndBind(t, addr)
+	defer conn.Close()
+
+	req := goldap.NewSearchRequest(
+		"dc=controls,dc=example",
+		goldap.ScopeWholeSubtree,
+		goldap.NeverDerefAliases,
+		0, 0, false,
+		"(objectclass=*)",
+		[]string{},
+		nil,
+	)
+
+	sr, err := conn.Search(req)
+	if err != nil {
+		t.Fatalf("search: %v", err)
+	}
+	if len(sr.Controls) == 0 {
+		t.Fatal("expected at least one control in search result")
+	}
+	found := false
+	for _, ctrl := range sr.Controls {
+		if ctrl.GetControlType() == "1.2.3.4.5.6.7.8.9" {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Fatalf("expected control OID 1.2.3.4.5.6.7.8.9 not found, got: %v", sr.Controls)
 	}
 }

@@ -5,13 +5,15 @@
 
 **ldapserver** is a helper library for building server software capable of speaking the LDAP protocol. This could be an alternate implementation of LDAP, a custom LDAP proxy or even a completely different backend capable of "masquerading" its API as a LDAP Server.
 
-The package supports 
+The package supports
 * All basic LDAP Operations (bind, search, add, compare, modify, delete, extended)
 * SSL
 * StartTLS
 * Unbind request is implemented, but is handled internally to close the connection.
 * Graceful stopping
 * Basic request routing inspired by [net/http ServeMux](http://golang.org/pkg/net/http/#ServeMux)
+* Referrals and SearchResultReference messages
+* Response controls on outgoing messages
 * Logger customisation (log interface)
 
 # Default behaviors
@@ -79,6 +81,45 @@ func handleBind(w ldap.ResponseWriter, m *ldap.Message) {
 }
 ```
 
+# Referrals, References and Controls
+
+## SearchResultReference
+
+Send a `SearchResultReference` to redirect the client to another server for part of the search:
+
+```Go
+ref := ldap.NewSearchResultReference("ldap://other.example/dc=ref,dc=example")
+w.Write(ref)
+
+res := ldap.NewSearchResultDoneResponse(ldap.LDAPResultSuccess)
+w.Write(res)
+```
+
+## Referral in LDAPResult
+
+Return a referral result code (10) with one or more referral URLs:
+
+```Go
+res := ldap.NewSearchResultDoneResponse(ldap.LDAPResultReferral)
+res.SetDiagnosticMessage("please follow the referral")
+res.SetReferral(ldap.NewReferral("ldap://alt.example/dc=redirect,dc=example"))
+w.Write(res)
+```
+
+## Response Controls
+
+Attach controls to the LDAPMessage envelope using `WriteWithControls`:
+
+```Go
+res := ldap.NewSearchResultDoneResponse(ldap.LDAPResultSuccess)
+ctrl := ldap.NewControl("1.2.3.4.5.6.7.8.9", false, nil)
+ldap.WriteWithControls(w, res, ctrl)
+```
+
+`WriteWithControls` accepts one or more controls as variadic arguments. It is backward-compatible - the `ResponseWriter` interface is unchanged.
+
+See the `examples/referrals_controls` directory for a complete working example.
+
 # More examples
 Look into the "examples" folder.
 
@@ -117,3 +158,6 @@ These tests start a full LDAP server (random port, all operations routed) and ex
 | `TestE2E_UnbindClosesConnection` | After unbind/close, further operations fail |
 | `TestE2E_NotFoundHandler` | Unrouted Extended request triggers NotFound handler (`UnwillingToPerform`, 53) |
 | `TestE2E_FullSequence` | Bind, Add, Modify, Delete, Compare, Search on a single connection |
+| `TestE2E_SearchResultReference` | Handler sends a `SearchResultReference`; client receives the referral URL |
+| `TestE2E_LDAPResultReferral` | Handler returns `SearchResultDone` with result code `Referral` (10) |
+| `TestE2E_ResponseControls` | Handler attaches a control via `WriteWithControls`; client sees the control OID |
