@@ -14,8 +14,6 @@ import (
 func listenOnAvailablePort(t *testing.T) (*Server, net.Addr, func()) {
 	t.Helper()
 
-	Logger = DiscardingLogger
-
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("listen: %v", err)

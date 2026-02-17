@@ -79,5 +79,41 @@ func handleBind(w ldap.ResponseWriter, m *ldap.Message) {
 }
 ```
 
-# more examples
-Look into the "examples" folder
+# More examples
+Look into the "examples" folder.
+
+# Tests
+
+```bash
+go test -v              # run all tests
+go test -race -v        # run all tests with the race detector
+go test -v -run TestE2E # run only the E2E tests
+```
+
+## Unit tests
+
+- `TestConcurrentRequestListAccess` — verifies thread-safe access to the per-connection request map
+- `TestShutdownListenerRace` — checks for races during server shutdown
+- `TestValidBindRequest`, `TestValidBindAfterInvalidConnection` — raw protocol-level bind scenarios
+- `TestInvalidFirstByte_NoServerCrash`, `TestGarbageBytes_NoServerCrash` — server resilience to malformed input
+- `TestStopRefusesNewConnections` — confirms the listener is closed before `Stop()` returns
+
+## End-to-end tests (`e2e_test.go`)
+
+These tests start a full LDAP server (random port, all operations routed) and exercise it with a real LDAP client (`github.com/go-ldap/ldap/v3`).
+
+| Test | What it covers |
+|------|---------------|
+| `TestE2E_BindSuccess` | Successful simple bind |
+| `TestE2E_BindFailure` | Bind with wrong credentials returns `InvalidCredentials` (49) |
+| `TestE2E_SearchDSE` | Root DSE search (BaseDN="", ScopeBaseObject) returns 1 entry with `vendorName` |
+| `TestE2E_SearchGeneric` | Subtree search returns 2 entries with expected attributes |
+| `TestE2E_SearchRouteConstraints` | Route matching by BaseDN/Scope/Filter directs requests to the correct handler |
+| `TestE2E_Add` | Add entry returns Success |
+| `TestE2E_Modify` | Modify entry (replace + add attributes) returns Success |
+| `TestE2E_Delete` | Delete entry returns Success |
+| `TestE2E_Compare` | Compare returns `CompareTrue` (6) |
+| `TestE2E_ExtendedWhoAmI` | Extended WhoAmI operation returns Success |
+| `TestE2E_UnbindClosesConnection` | After unbind/close, further operations fail |
+| `TestE2E_NotFoundHandler` | Unrouted Extended request triggers NotFound handler (`UnwillingToPerform`, 53) |
+| `TestE2E_FullSequence` | Bind, Add, Modify, Delete, Compare, Search on a single connection |

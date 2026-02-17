@@ -13,8 +13,6 @@ import (
 // allowing new connections to be accepted in the window between wg.Wait()
 // completing and serve() checking chDone again.
 func TestStopRefusesNewConnections(t *testing.T) {
-	Logger = DiscardingLogger
-
 	ln, err := net.Listen("tcp", "127.0.0.1:0")
 	if err != nil {
 		t.Fatalf("listen: %v", err)
