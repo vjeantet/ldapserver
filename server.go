@@ -86,8 +86,6 @@ func (s *Server) ListenAndServe(addr string, options ...func(*Server)) error {
 
 // Handle requests messages on the ln listener
 func (s *Server) serve() error {
-	defer s.Listener.Close()
-
 	if s.Handler == nil && !s.useHandlerSource {
 		Logger.Panicln("No LDAP Request Handler defined")
 	}
@@ -95,15 +93,20 @@ func (s *Server) serve() error {
 	i := 0
 
 	for {
-		select {
-		case <-s.chDone:
-			Logger.Print("Stopping server")
-			s.Listener.Close()
-			return nil
-		default:
-		}
-
 		rw, err := s.Listener.Accept()
+		if err != nil {
+			select {
+			case <-s.chDone:
+				Logger.Print("Stopping server")
+				return nil
+			default:
+			}
+			if opErr, ok := err.(*net.OpError); ok && opErr.Timeout() {
+				continue
+			}
+			Logger.Println(err)
+			return err
+		}
 
 		if s.ReadTimeout != 0 {
 			rw.SetReadDeadline(time.Now().Add(s.ReadTimeout))
@@ -111,15 +114,8 @@ func (s *Server) serve() error {
 		if s.WriteTimeout != 0 {
 			rw.SetWriteDeadline(time.Now().Add(s.WriteTimeout))
 		}
-		if nil != err {
-			if opErr, ok := err.(*net.OpError); ok || opErr.Timeout() {
-				continue
-			}
-			Logger.Println(err)
-		}
 
 		cli, err := s.newClient(rw)
-
 		if err != nil {
 			continue
 		}
@@ -130,8 +126,6 @@ func (s *Server) serve() error {
 		s.wg.Add(1)
 		go cli.serve()
 	}
-
-	return nil
 }
 
 // Return a new session with the connection
@@ -161,6 +155,7 @@ func (s *Server) newClient(rwc net.Conn) (c *client, err error) {
 // In either case, when the LDAP session is terminated.
 func (s *Server) Stop() {
 	close(s.chDone)
+	s.Listener.Close()
 	Logger.Print("gracefully closing client connections...")
 	s.wg.Wait()
 	Logger.Print("all clients connection closed")
