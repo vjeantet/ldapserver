@@ -9,7 +9,7 @@ import (
 
 	ber "github.com/go-asn1-ber/asn1-ber"
 	goldap "github.com/go-ldap/ldap/v3"
-	ldapmsg "github.com/lor00x/goldap/message"
+	ldapmsg "github.com/vjeantet/goldap/message"
 )
 
 func TestMain(m *testing.M) {

@@ -17,7 +17,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	ldapmsg "github.com/lor00x/goldap/message"
+	ldapmsg "github.com/vjeantet/goldap/message"
 	ldap "github.com/vjeantet/ldapserver"
 )
 

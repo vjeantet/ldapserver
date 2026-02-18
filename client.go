@@ -6,7 +6,7 @@ import (
 	"sync"
 	"time"
 
-	ldap "github.com/lor00x/goldap/message"
+	ldap "github.com/vjeantet/goldap/message"
 )
 
 type client struct {

@@ -28,8 +28,8 @@ github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZb
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/testify v1.8.1 h1:w7B6lhMri9wdJUVmEZPGGhZzrYTPvgJArz7wNPgYKsk=
 github.com/stretchr/testify v1.8.1/go.mod h1:w2LPCIKwWwSfY2zedu0+kehJoqGctiVI29o6fzry7u4=
-github.com/vjeantet/goldap v0.0.0-20260217225510-5e853b323c98 h1:VIzzC7VhZzYVD6FlsjE19UjvRj5PuMLteEEAkLjGmxo=
-github.com/vjeantet/goldap v0.0.0-20260217225510-5e853b323c98/go.mod h1:Ft0W01N6lVyuW5wkHqanw39UlMK2oun8boTgbX1xxuY=
+github.com/vjeantet/goldap v0.0.0-20260218214109-3dcf54ec83d6 h1:iNX0M2nafoOpgUyQJ1CgtbVzScps177P+3+K7R37THI=
+github.com/vjeantet/goldap v0.0.0-20260218214109-3dcf54ec83d6/go.mod h1:aj1IFnuSzoqIC0eLF+d92jyaS8j+zYMnxL6uj5cIlh0=
 golang.org/x/crypto v0.48.0 h1:/VRzVqiRSggnhY7gNRxPauEQ5Drw9haKdM0jqfcCFts=
 golang.org/x/crypto v0.48.0/go.mod h1:r0kV5h3qnFPlQnBSrULhlsRfryS2pmewsg+XfMgkVos=
 golang.org/x/net v0.49.0 h1:eeHFmOGUTtaaPSGNmjBKpbng9MulQsJURQUAfUwY++o=

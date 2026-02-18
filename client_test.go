@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	ldap "github.com/lor00x/goldap/message"
+	ldap "github.com/vjeantet/goldap/message"
 )
 
 // TestConcurrentRequestListAccess exercises concurrent read/write access to

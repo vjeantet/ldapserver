@@ -4,7 +4,7 @@ import (
 	"encoding/asn1"
 	"testing"
 
-	ldap "github.com/lor00x/goldap/message"
+	ldap "github.com/vjeantet/goldap/message"
 )
 
 func TestParseCancelRequestValue(t *testing.T) {

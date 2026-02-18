@@ -4,7 +4,7 @@ import (
 	"encoding/asn1"
 	"fmt"
 
-	ldap "github.com/lor00x/goldap/message"
+	ldap "github.com/vjeantet/goldap/message"
 )
 
 // cancelRequestValue represents the ASN.1 value of a Cancel Extended Request
