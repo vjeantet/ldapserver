@@ -23,6 +23,7 @@ type client struct {
 	mutex         sync.Mutex
 	writeDone     chan bool
 	rawData       []byte
+	data          any
 	handler       Handler
 	hasOwnHandler bool
 }
@@ -33,6 +34,18 @@ func (c *client) GetConn() net.Conn {
 
 func (c *client) GetRaw() []byte {
 	return c.rawData
+}
+
+// GetData returns the custom data associated with this client connection.
+func (c *client) GetData() any {
+	return c.data
+}
+
+// SetData associates arbitrary custom data with this client connection.
+// This can be used by handlers to store per-connection state such as
+// authentication results or session information.
+func (c *client) SetData(data any) {
+	c.data = data
 }
 
 func (c *client) SetConn(conn net.Conn) {

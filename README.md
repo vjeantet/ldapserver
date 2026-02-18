@@ -10,6 +10,8 @@ The package supports
 * Cancel extended operation (RFC 3909) with built-in handling
 * SSL
 * StartTLS
+* Serve with a pre-existing `net.Listener` (`Serve()` and `ServeTLS()`)
+* Per-connection client data (`SetData` / `GetData`)
 * Unbind request is implemented, but is handled internally to close the connection.
 * Graceful stopping
 * Basic request routing inspired by [net/http ServeMux](http://golang.org/pkg/net/http/#ServeMux)
@@ -146,6 +148,47 @@ ldap.WriteWithControls(w, res, ctrl)
 
 See the `examples/referrals_controls` directory for a complete working example.
 
+# Serve and ServeTLS
+
+Instead of `ListenAndServe`, you can pass your own `net.Listener` to integrate the LDAP server into an existing application:
+
+```Go
+ln, _ := net.Listen("tcp", ":10389")
+go server.Serve(ln)
+```
+
+For LDAPS, set `TLSConfig` on the server and use `ServeTLS`:
+
+```Go
+server.TLSConfig = &tls.Config{Certificates: []tls.Certificate{cert}}
+ln, _ := net.Listen("tcp", ":10636")
+go server.ServeTLS(ln)
+```
+
+# Per-connection client data
+
+Handlers can store and retrieve arbitrary data on the current connection using `SetData` and `GetData`. This is useful for tracking session state (e.g. the authenticated DN after a bind):
+
+```Go
+// In the bind handler: store the authenticated identity
+func handleBind(w ldap.ResponseWriter, m *ldap.Message) {
+    r := m.GetBindRequest()
+    m.Client.SetData(string(r.Name()))
+    w.Write(ldap.NewBindResponse(ldap.LDAPResultSuccess))
+}
+
+// In the search handler: retrieve it
+func handleSearch(w ldap.ResponseWriter, m *ldap.Message) {
+    boundDN, _ := m.Client.GetData().(string)
+    log.Printf("Search by %s", boundDN)
+    // ...
+}
+```
+
+Each connection has its own independent data. `GetData` returns `nil` until `SetData` is called.
+
+See the `examples/client_data` directory for a complete working example.
+
 # More examples
 Look into the "examples" folder.
 
@@ -190,4 +233,6 @@ These tests start a full LDAP server (random port, all operations routed) and ex
 | `TestE2E_ResponseControls` | Handler attaches a control via `WriteWithControls`; client sees the control OID |
 | `TestE2E_CancelNoSuchOperation` | Cancel a non-existent messageID returns `NoSuchOperation` (119) |
 | `TestE2E_CancelInProgressSearch` | Cancel a blocking search; both cancel response and search result return `Canceled` (118) |
+| `TestE2E_ClientData` | `SetData`/`GetData` persists across operations on the same connection; two connections have isolated data |
+| `TestE2E_ClientDataNilByDefault` | `GetData` returns `nil` on a fresh connection |
 | `TestE2E_CancelUserDefinedHandler` | Custom `routes.Cancel(handler)` takes precedence over built-in auto-handling |

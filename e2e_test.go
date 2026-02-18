@@ -9,6 +9,7 @@ import (
 
 	ber "github.com/go-asn1-ber/asn1-ber"
 	goldap "github.com/go-ldap/ldap/v3"
+	ldapmsg "github.com/lor00x/goldap/message"
 )
 
 func TestMain(m *testing.M) {
@@ -792,6 +793,123 @@ func TestE2E_CancelInProgressSearch(t *testing.T) {
 	}
 	if !gotSearchCanceled {
 		t.Fatal("did not receive SearchResultDone with Canceled result code")
+	}
+}
+
+func TestE2E_ClientData(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+
+	server := NewServer()
+	routes := NewRouteMux()
+
+	// Bind handler stores the DN in client data
+	routes.Bind(func(w ResponseWriter, m *Message) {
+		r := m.GetBindRequest()
+		dn := string(r.Name())
+		m.Client.SetData(dn)
+		res := NewBindResponse(LDAPResultSuccess)
+		w.Write(res)
+	})
+
+	// Search handler reads client data and returns it as an attribute
+	routes.Search(func(w ResponseWriter, m *Message) {
+		dn, _ := m.Client.GetData().(string)
+		e := NewSearchResultEntry("cn=result")
+		e.AddAttribute("boundDN", ldapmsg.AttributeValue(dn))
+		w.Write(e)
+		w.Write(NewSearchResultDoneResponse(LDAPResultSuccess))
+	})
+
+	server.Handle(routes)
+	server.Listener = ln
+	go server.serve()
+	defer server.Stop()
+
+	addr := ln.Addr().String()
+
+	// Connection 1: bind as cn=alice
+	conn1, err := goldap.Dial("tcp", addr)
+	if err != nil {
+		t.Fatalf("dial conn1: %v", err)
+	}
+	defer conn1.Close()
+	if err := conn1.Bind("cn=alice", "pass"); err != nil {
+		t.Fatalf("bind conn1: %v", err)
+	}
+
+	// Connection 2: bind as cn=bob
+	conn2, err := goldap.Dial("tcp", addr)
+	if err != nil {
+		t.Fatalf("dial conn2: %v", err)
+	}
+	defer conn2.Close()
+	if err := conn2.Bind("cn=bob", "pass"); err != nil {
+		t.Fatalf("bind conn2: %v", err)
+	}
+
+	searchReq := goldap.NewSearchRequest(
+		"", goldap.ScopeBaseObject, goldap.NeverDerefAliases,
+		0, 0, false, "(objectclass=*)", []string{}, nil,
+	)
+
+	// Verify conn1 sees "cn=alice"
+	sr1, err := conn1.Search(searchReq)
+	if err != nil {
+		t.Fatalf("search conn1: %v", err)
+	}
+	if len(sr1.Entries) != 1 {
+		t.Fatalf("conn1: expected 1 entry, got %d", len(sr1.Entries))
+	}
+	if got := sr1.Entries[0].GetAttributeValue("boundDN"); got != "cn=alice" {
+		t.Fatalf("conn1: expected boundDN=cn=alice, got %q", got)
+	}
+
+	// Verify conn2 sees "cn=bob"
+	sr2, err := conn2.Search(searchReq)
+	if err != nil {
+		t.Fatalf("search conn2: %v", err)
+	}
+	if len(sr2.Entries) != 1 {
+		t.Fatalf("conn2: expected 1 entry, got %d", len(sr2.Entries))
+	}
+	if got := sr2.Entries[0].GetAttributeValue("boundDN"); got != "cn=bob" {
+		t.Fatalf("conn2: expected boundDN=cn=bob, got %q", got)
+	}
+}
+
+func TestE2E_ClientDataNilByDefault(t *testing.T) {
+	ln, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatalf("listen: %v", err)
+	}
+
+	server := NewServer()
+	routes := NewRouteMux()
+
+	var gotData any
+	routes.Bind(func(w ResponseWriter, m *Message) {
+		gotData = m.Client.GetData()
+		w.Write(NewBindResponse(LDAPResultSuccess))
+	})
+
+	server.Handle(routes)
+	server.Listener = ln
+	go server.serve()
+	defer server.Stop()
+
+	conn, err := goldap.Dial("tcp", ln.Addr().String())
+	if err != nil {
+		t.Fatalf("dial: %v", err)
+	}
+	defer conn.Close()
+	if err := conn.Bind("cn=test", "pass"); err != nil {
+		t.Fatalf("bind: %v", err)
+	}
+	if gotData != nil {
+		t.Fatalf("expected nil client data by default, got %v", gotData)
 	}
 }
 
