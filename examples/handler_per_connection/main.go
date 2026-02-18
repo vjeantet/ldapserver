@@ -60,7 +60,7 @@ type myHandler struct {
 	was_bound bool
 }
 
-// handleBind return Success if login == mysql
+// handleBind return Success if username == "myLogin" , whatever the value of the password
 func (mh *myHandler) handleBind(w ldap.ResponseWriter, m *ldap.Message) {
 	r := m.GetBindRequest()
 	res := ldap.NewBindResponse(ldap.LDAPResultSuccess)

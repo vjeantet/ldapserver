@@ -36,7 +36,7 @@ func main() {
 	server.Stop()
 }
 
-// handleBind return Success if login == mysql
+// handleBind return Success if username == "myLogin" , whatever the value of the password
 func handleBind(w ldap.ResponseWriter, m *ldap.Message) {
 	r := m.GetBindRequest()
 	res := ldap.NewBindResponse(ldap.LDAPResultSuccess)
