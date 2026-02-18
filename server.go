@@ -2,6 +2,7 @@ package ldapserver
 
 import (
 	"bufio"
+	"crypto/tls"
 	"net"
 	"sync"
 	"time"
@@ -18,6 +19,9 @@ type Server struct {
 	WriteTimeout time.Duration  // optional write timeout
 	wg           sync.WaitGroup // group of goroutines (1 by client)
 	chDone       chan bool      // Channel Done, value => shutdown
+
+	// TLSConfig optionally provides a TLS configuration for use by ServeTLS.
+	TLSConfig *tls.Config
 
 	// OnNewConnection, if non-nil, is called on new connections.
 	// If it returns non-nil, the connection is closed.
@@ -60,6 +64,20 @@ func (s *Server) Handle(h Handler) {
 		panic("LDAP: multiple Handler registrations")
 	}
 	s.Handler = h
+}
+
+// Serve accepts incoming LDAP connections on the given listener.
+// The Server takes ownership of the listener and will close it when Stop is called.
+func (s *Server) Serve(listener net.Listener) error {
+	s.Listener = listener
+	return s.serve()
+}
+
+// ServeTLS wraps the given listener with TLS using s.TLSConfig
+// and accepts incoming LDAP connections.
+func (s *Server) ServeTLS(listener net.Listener) error {
+	s.Listener = tls.NewListener(listener, s.TLSConfig)
+	return s.serve()
 }
 
 // ListenAndServe listens on the TCP network address s.Addr and then
