@@ -12,6 +12,8 @@ type HandlerSource interface {
 	GetHandler() Handler
 }
 
+type ClientCloseHandler func(conn net.Conn, data any)
+
 // Server is an LDAP server.
 type Server struct {
 	Listener     net.Listener
@@ -26,6 +28,9 @@ type Server struct {
 	// OnNewConnection, if non-nil, is called on new connections.
 	// If it returns non-nil, the connection is closed.
 	OnNewConnection func(c net.Conn) error
+	// OnClientClose, if non-nil, is called once when a client session ends.
+    // It is invoked after request processing has stopped and before the connection is closed.
+	OnClientClose   ClientCloseHandler
 
 	// Handler handles ldap message received from client
 	// it SHOULD "implement" RequestHandler interface
