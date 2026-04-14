@@ -60,15 +60,31 @@ func NewServerWithHandlerSource(hs HandlerSource) *Server {
 }
 
 // Handle registers the handler for the server.
-// If a handler already exists for pattern, Handle panics
+// If a handler is already registered, Handle panics.
+// If h is a RouteMux with a close handler, it also registers the close hook.
 func (s *Server) Handle(h Handler) {
 	if s.useHandlerSource {
-		panic("LDAP: attempt to register handler and a handlersource")
+		panic("LDAP: attempt to register both a handler and a handler source")
 	}
 	if s.Handler != nil {
 		panic("LDAP: multiple Handler registrations")
 	}
 	s.Handler = h
+
+	if routes, ok := h.(*RouteMux); ok && routes.closeHandler != nil {
+		if s.OnClientClose == nil {
+			s.OnClientClose = routes.closeHandler
+			return
+		}
+
+		prev := s.OnClientClose
+		next := routes.closeHandler
+
+		s.OnClientClose = func(conn net.Conn, data any) {
+			prev(conn, data)
+			next(conn, data)
+		}
+	}
 }
 
 // Serve accepts incoming LDAP connections on the given listener.

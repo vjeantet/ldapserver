@@ -28,6 +28,7 @@ type HandlerFunc func(ResponseWriter, *Message)
 type RouteMux struct {
 	routes        []*route
 	notFoundRoute *route
+	closeHandler  ClientCloseHandler
 }
 
 type route struct {
@@ -261,4 +262,9 @@ func (h *RouteMux) Abandon(handler HandlerFunc) *route {
 
 func (h *RouteMux) Cancel(handler HandlerFunc) *route {
 	return h.Extended(handler).RequestName(NoticeOfCancel)
+}
+
+func (h *RouteMux) Close(handler ClientCloseHandler) *RouteMux {
+	h.closeHandler = handler
+	return h
 }
