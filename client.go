@@ -11,6 +11,8 @@ import (
 
 type client struct {
 	Numero        int
+	AuthcID       string
+	AuthzID       string
 	srv           *Server
 	rwc           net.Conn
 	br            *bufio.Reader
