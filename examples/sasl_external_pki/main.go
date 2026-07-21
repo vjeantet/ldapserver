@@ -113,19 +113,19 @@ func buildAuthzPolicies() {
 		`cn=rootDN`,
 	)
 
-        // Add users certificate policy.
-        authzRegex.Push(
-                `(?i)^CN=([^,]+),OU=Users,O=The Acme Widgets Corporation,ST=California,C=US$`,
-                `cn=$1,ou=People,o=Acme`,
+	// Add users certificate policy.
+	authzRegex.Push(
+		`(?i)^CN=([^,]+),OU=Users,O=The Acme Widgets Corporation,ST=California,C=US$`,
+		`cn=$1,ou=People,o=Acme`,
 	)
 
 	// Add servers certificate policy. This
 	// is useful in cases where LDAP servers
 	// bind to other LDAP servers for things
 	// like chaining or content replication.
-        authzRegex.Push(
-        	`(?i)^CN=([^,]+),OU=Systems,O=The Acme Widgets Corporation,ST=California,C=US$`,
-        	`cn=$1,ou=Servers,o=Acme`,
+	authzRegex.Push(
+		`(?i)^CN=([^,]+),OU=Systems,O=The Acme Widgets Corporation,ST=California,C=US$`,
+		`cn=$1,ou=Servers,o=Acme`,
 	)
 }
 
@@ -171,7 +171,7 @@ func handleBind(w ldap.ResponseWriter, m *ldap.Message) {
 	//
 	// If we match an authz policy, overwrite user with
 	// the authz DN. If not, we will use the *original*
-	// Subject DN *as-is*. 
+	// Subject DN *as-is*.
 	if user != "" {
 		if dn, ok := authzRegex.Apply(user); ok {
 			user = dn
@@ -401,17 +401,17 @@ func getTLSconfig() (*tls.Config, error) {
 
 		// Examine the PEER (client) certificate, and verify
 		// that is (a) has not expired, and (b) is not revoked.
-    		VerifyPeerCertificate: func(raw [][]byte, issuers [][]*x509.Certificate) (err error) {
+		VerifyPeerCertificate: func(raw [][]byte, issuers [][]*x509.Certificate) (err error) {
 			var cert *x509.Certificate
 			if cert, err = x509.ParseCertificate(raw[0]); err == nil {
-        			if isRevoked(cert) {
-            				err = fmt.Errorf("peer certificate is revoked")
+				if isRevoked(cert) {
+					err = fmt.Errorf("peer certificate is revoked")
 				} else if isExpired(cert) {
-            				err = fmt.Errorf("peer certificate has expired")
+					err = fmt.Errorf("peer certificate has expired")
 				}
 			}
-        		return
-    		},
+			return
+		},
 	}, nil
 }
 
@@ -442,13 +442,13 @@ func handleStartTLS(w ldap.ResponseWriter, m *ldap.Message) {
 }
 
 func isRevoked(cert *x509.Certificate) (is bool) {
-    for _, rc := range crl.RevokedCertificates {
-        if cert.SerialNumber.Cmp(rc.SerialNumber) == 0 {
-		is = true
-		break
-        }
-    }
-    return
+	for _, rc := range crl.RevokedCertificates {
+		if cert.SerialNumber.Cmp(rc.SerialNumber) == 0 {
+			is = true
+			break
+		}
+	}
+	return
 }
 
 func isExpired(cert *x509.Certificate) bool {
@@ -461,15 +461,15 @@ an error following an attempt to read and process the input
 pemBytes argument.
 */
 func parseCRL(pemBytes []byte) (*x509.RevocationList, error) {
-    block, _ := pem.Decode(pemBytes)
-    if block == nil {
-        return nil, fmt.Errorf("no PEM block found")
-    }
-    if block.Type != "X509 CRL" {
-        return nil, fmt.Errorf("unexpected PEM type: %s", block.Type)
-    }
+	block, _ := pem.Decode(pemBytes)
+	if block == nil {
+		return nil, fmt.Errorf("no PEM block found")
+	}
+	if block.Type != "X509 CRL" {
+		return nil, fmt.Errorf("unexpected PEM type: %s", block.Type)
+	}
 
-    return x509.ParseRevocationList(block.Bytes)
+	return x509.ParseRevocationList(block.Bytes)
 }
 
 /*
@@ -491,8 +491,8 @@ type AuthzRegexPolicies []AuthzRegexPolicy
 AuthzRegexPolicy implements a single pattern matcher.
 */
 type AuthzRegexPolicy struct {
-    Pattern *regexp.Regexp
-    Replace string
+	Pattern *regexp.Regexp
+	Replace string
 }
 
 /*
@@ -501,17 +501,17 @@ Boolean value following an attempt to "convert" a subject
 DN to an LDAP DN using a policy found within the receiver.
 */
 func (r AuthzRegexPolicy) apply(subj string) (string, bool) {
-    m := r.Pattern.FindStringSubmatch(subj)
-    if m == nil {
-        return "", false
-    }
+	m := r.Pattern.FindStringSubmatch(subj)
+	if m == nil {
+		return "", false
+	}
 
-    // Replace $1, $2, et al., with captured groups.
-    out := r.Replace
-    for i := 1; i < len(m); i++ {
-        out = strings.ReplaceAll(out, fmt.Sprintf("$%d", i), m[i])
-    }
-    return out, true
+	// Replace $1, $2, et al., with captured groups.
+	out := r.Replace
+	for i := 1; i < len(m); i++ {
+		out = strings.ReplaceAll(out, fmt.Sprintf("$%d", i), m[i])
+	}
+	return out, true
 }
 
 /*
@@ -551,7 +551,7 @@ instance.
 func (r *AuthzRegexPolicies) Push(pat, val string) {
 	*r = append(*r, AuthzRegexPolicy{
 		Pattern: regexp.MustCompile(pat),
-	    	Replace: val,
+		Replace: val,
 	})
 }
 
@@ -632,8 +632,8 @@ bundledCAs contains three (3) issuing certificates: one (1) root
 and two (2) intermediates:
 
   - root issuer
-      |__ systems issuer
-      |__ users issuer
+    |__ systems issuer
+    |__ users issuer
 
 All CAs expire in 2036.
 */
@@ -749,7 +749,7 @@ one could go with OCSP, but that has its own caveats ...
 
 This can be examined via:
 
-  $ openssl crl -text -in /path/to/the/crl/file
+	$ openssl crl -text -in /path/to/the/crl/file
 */
 var usersCRL []byte = []byte(`-----BEGIN X509 CRL-----
 MIIDMDCCARgCAQEwDQYJKoZIhvcNAQELBQAwgYoxCzAJBgNVBAYTAlVTMRMwEQYD
