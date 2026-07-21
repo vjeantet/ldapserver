@@ -88,6 +88,10 @@ const (
 
 const SearchRequestScopeBaseObject = 0
 const SearchRequestSingleLevel = 1
+const SearchRequestWholeSubtree = 2
+
+// misspelling of "WholeSubtree", preserved
+// for compatibility, at least for now ...
 const SearchRequestHomeSubtree = 2
 
 // Extended operation responseName and requestName
