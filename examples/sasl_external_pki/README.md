@@ -21,6 +21,10 @@ The _server_ certificate and private key are embedded as raw PEM string constant
 
 The _client_ certificates and private keys are actual files and are meant for the end user. See the "SASL/EXTERNAL Mechanism" section for details.
 
+As mentioned in the `main.go` header:
+
+_"The PKI content included in this demo is intended for this demo ONLY and should NEVER be used in any real production environment."_
+
 ### SASL/EXTERNAL Mechanism
 
 The SASL/EXTERNAL mechanism is generally used for client certificates or hardware crypto devices. It is called "EXTERNAL" because identities are verified via a PKI implementation and not by any directory content in particular.
