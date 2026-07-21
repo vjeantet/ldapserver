@@ -28,9 +28,14 @@ type Server struct {
 	// OnNewConnection, if non-nil, is called on new connections.
 	// If it returns non-nil, the connection is closed.
 	OnNewConnection func(c net.Conn) error
+
 	// OnClientClose, if non-nil, is called once when a client session ends.
-    // It is invoked after request processing has stopped and before the connection is closed.
-	OnClientClose   ClientCloseHandler
+	// It runs after request processing has stopped and before the connection is
+	// closed. The hook must not block because it runs on the shutdown path and
+	// a blocking hook prevents Stop from completing. Data may be nil because
+	// the hook runs for every closed connection, including connections rejected
+	// by OnNewConnection or closed before SetData is called.
+	OnClientClose ClientCloseHandler
 
 	// Handler handles ldap message received from client
 	// it SHOULD "implement" RequestHandler interface
@@ -60,31 +65,15 @@ func NewServerWithHandlerSource(hs HandlerSource) *Server {
 }
 
 // Handle registers the handler for the server.
-// If a handler is already registered, Handle panics.
-// If h is a RouteMux with a close handler, it also registers the close hook.
+// If a handler already exists for pattern, Handle panics
 func (s *Server) Handle(h Handler) {
 	if s.useHandlerSource {
-		panic("LDAP: attempt to register both a handler and a handler source")
+		panic("LDAP: attempt to register handler and a handlersource")
 	}
 	if s.Handler != nil {
 		panic("LDAP: multiple Handler registrations")
 	}
 	s.Handler = h
-
-	if routes, ok := h.(*RouteMux); ok && routes.closeHandler != nil {
-		if s.OnClientClose == nil {
-			s.OnClientClose = routes.closeHandler
-			return
-		}
-
-		prev := s.OnClientClose
-		next := routes.closeHandler
-
-		s.OnClientClose = func(conn net.Conn, data any) {
-			prev(conn, data)
-			next(conn, data)
-		}
-	}
 }
 
 // Serve accepts incoming LDAP connections on the given listener.
