@@ -75,6 +75,20 @@ func (c *client) ReadPacket() (*messagePacket, error) {
 	return mP, err
 }
 
+func (c *client) callOnClose() {
+	if c == nil || c.srv == nil || c.srv.OnClientClose == nil {
+		return
+	}
+
+	defer func() {
+		if r := recover(); r != nil {
+			Logger.Printf("panic in OnClientClose for client [%d]: %v", c.Numero, r)
+		}
+	}()
+
+	c.srv.OnClientClose(c.rwc, c.data)
+}
+
 func (c *client) serve() {
 	defer c.close()
 
@@ -190,6 +204,8 @@ func (c *client) serve() {
 // * signal to server that client shutdown is ok
 func (c *client) close() {
 	Logger.Printf("client %d close()", c.Numero)
+	defer c.srv.wg.Done()
+
 	close(c.closing)
 	<-c.shutdownDone // wait for shutdown-listener goroutine to finish
 
@@ -211,10 +227,9 @@ func (c *client) close() {
 	Logger.Printf("client [%d] request processors ended", c.Numero)
 
 	<-c.writeDone // Wait for the last message sent to be written
+	c.callOnClose()
 	c.rwc.Close() // close client connection
 	Logger.Printf("client [%d] connection closed", c.Numero)
-
-	c.srv.wg.Done() // signal to server that client shutdown is ok
 }
 
 func (c *client) writeMessage(m *ldap.LDAPMessage) {
