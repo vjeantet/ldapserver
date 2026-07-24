@@ -1,0 +1,53 @@
+## Rename this file to ".ldaprc" and place it in the root of your home dir.
+## Update the respective TLS file paths as needed. See the "pki" directory
+## in this example directory for the PKI files mentioned below.
+##
+## Strictly speaking, using this .ldaprc, or a system-level ldap.conf, isn't
+## truly necessary for this demo. Instead, one can add the parameters below
+## as environment vars by simply prefixing "LDAP" to each parameter (e.g.:
+## URI becomes LDAPURI). But since this is a demo, we'll stick with a personal
+## ~/.ldaprc file just because its simpler. Run "man .ldaprc" to see the man
+## page for that file.
+
+URI        ldap://127.0.0.1:10389
+SASL_MECH  EXTERNAL
+
+## VALID client certificate/key pair
+## When uncommented, running "ldapwhoami -QZZ" will return the following:
+##   cn=Valid User,ou=People,o=Acme
+## ... which indicates a successful TLS handshake, verification and "WhoAmI?" bind.
+##
+TLS_CERT /path/to/valid_user/cert.pem
+TLS_KEY  /path/to/valid_user/priv.key
+
+## EXPIRED client certificate/key pair
+## When uncommented, running "ldapwhoami -QZZ" will result in the following:
+##   - Server-side log event: "peer certificate has expired"
+##   - Client side error: "ldap_sasl_interactive_bind: Can't contact LDAP server (-1)"
+##
+#TLS_CERT /path/to/expired_user/cert.pem
+#TLS_KEY  /path/to/expired_user/priv.key
+
+## REVOKED client certificate/key pair
+## When uncommented, running "ldapwhoami -QZZ" will result in the following:
+##   - Server-side log event: "peer certificate is revoked"
+##   - Client side error: "ldap_sasl_interactive_bind: Can't contact LDAP server (-1)"
+##
+#TLS_CERT /path/to/revoked_user/cert.pem
+#TLS_KEY  /path/to/revoked_user/priv.key
+
+## This CA bundle contains three (3) certificates -- one (1) root and
+## two (2) intermediates (for "systems" and "users").
+## 
+## In a real production environment, one should NOT specify the CA
+## manually as we're doing with TLS_CACERT. Instead, the CA(s) should
+## be added to the *system trust* via the update-ca-certificates command
+## (or, on some other Linux flavors, update-ca-trust). See the man pages
+## for either of these commands to learn how to add issuers to the system
+## trust *properly*.
+##
+## The OpenLDAP library will automatically check the system trust, thus
+## neither TLS_CACERT nor TLS_CACERTDIR are actually needed. But for the
+## sake of portability and ease-of-use, we'll opt to use TLS_CACERT for
+## this demo :)
+TLS_CACERT /path/to/issuer-bundle.pem
