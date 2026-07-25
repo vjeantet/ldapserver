@@ -9,7 +9,11 @@ The package supports
 * SSL
 * StartTLS
 * Serve with a pre-existing `net.Listener` (`Serve()` and `ServeTLS()`)
+* Simple and SASL binds, with route matching on the authentication choice and access to the SASL mechanism
 * Per-connection client data (`SetData` / `GetData`)
+* Per-connection handler instances (`NewServerWithHandlerSource`)
+* Connection lifecycle hooks (`OnNewConnection`, `OnClientClose`)
+* Read and write timeouts
 * Unbind request is implemented, but is handled internally to close the connection.
 * Graceful stopping
 * Basic request routing inspired by [net/http ServeMux](http://golang.org/pkg/net/http/#ServeMux)
@@ -163,6 +167,15 @@ ln, _ := net.Listen("tcp", ":10636")
 go server.ServeTLS(ln)
 ```
 
+# Timeouts
+
+`ReadTimeout` and `WriteTimeout` are optional deadlines applied to each accepted connection. They default to zero, which means no deadline:
+
+```Go
+server.ReadTimeout = 30 * time.Second
+server.WriteTimeout = 30 * time.Second
+```
+
 # Per-connection client data
 
 Handlers can store and retrieve arbitrary data on the current connection using `SetData` and `GetData`. This is useful for tracking session state (e.g. the authenticated DN after a bind):
@@ -187,8 +200,124 @@ Each connection has its own independent data. `GetData` returns `nil` until `Set
 
 See the `examples/client_data` directory for a complete working example.
 
+# Per-connection handler
+
+`SetData`/`GetData` stores an opaque value. When you would rather keep per-connection state in a dedicated struct with methods, build the server with `NewServerWithHandlerSource`. The server calls `GetHandler()` once per accepted connection, so each connection gets its own handler instance:
+
+```Go
+type myHandlerSource struct{}
+
+// Called by the server on each new connection.
+func (*myHandlerSource) GetHandler() ldap.Handler {
+    routes := ldap.NewRouteMux()
+    mh := &myHandler{}
+    routes.Bind(mh.handleBind)
+    routes.Search(mh.handleSearch)
+    return routes
+}
+
+// One instance per connection: fields are connection-scoped state.
+type myHandler struct {
+    username string
+    wasBound bool
+}
+
+func main() {
+    server := ldap.NewServerWithHandlerSource(&myHandlerSource{})
+    go server.ListenAndServe("127.0.0.1:10389")
+    // ...
+}
+```
+
+A server built this way must not also call `Handle()` - doing so panics. This is typically used to let a failed `Bind` restrict or refuse subsequent operations on the same connection.
+
+See the `examples/handler_per_connection` directory for a complete working example.
+
+# Connection lifecycle hooks
+
+## OnNewConnection
+
+Called for each accepted connection, before any LDAP message is read. Returning a non-nil error closes the connection:
+
+```Go
+server.OnNewConnection = func(c net.Conn) error {
+    log.Printf("new connection from %s", c.RemoteAddr())
+    return nil
+}
+```
+
+## OnClientClose
+
+Called once when a client session ends, after request processing has stopped and before the connection is closed. It receives the connection and whatever `SetData` stored on it:
+
+```Go
+server.OnClientClose = func(conn net.Conn, data any) {
+    boundDN, _ := data.(string)
+    log.Printf("session ended for %s (%s)", conn.RemoteAddr(), boundDN)
+}
+```
+
+Notes:
+
+* The hook runs exactly once per connection, on unbind, on abrupt disconnect and on server shutdown.
+* `data` may be `nil` - the hook also runs for connections rejected by `OnNewConnection` or closed before `SetData` was called.
+* The hook must not block: it runs on the shutdown path, and a blocking hook prevents `Stop()` from returning.
+* A panic inside the hook is recovered and logged, so it cannot break shutdown.
+
+# SASL binds
+
+Route matching can discriminate on the bind authentication choice with `AuthenticationChoice`, which accepts `"simple"` or `"sasl"`:
+
+```Go
+routes.Bind(handleSimpleBind).AuthenticationChoice("simple")
+routes.Bind(handleSaslBind).AuthenticationChoice("sasl")
+```
+
+Inside a handler, the requested SASL mechanism is available through the bind request:
+
+```Go
+func handleSaslBind(w ldap.ResponseWriter, m *ldap.Message) {
+    r := m.GetBindRequest()
+    mech := string(r.AuthenticationSasl().Mechanism())
+
+    if strings.ToUpper(mech) != "EXTERNAL" {
+        res := ldap.NewBindResponse(ldap.LDAPResultAuthMethodNotSupported)
+        res.SetDiagnosticMessage("SASL mechanism not supported: " + mech)
+        w.Write(res)
+        return
+    }
+    // ...
+}
+```
+
+For SASL/EXTERNAL, the identity comes from the TLS layer rather than from the request. Get the connection with `m.Client.GetConn()` and, when it is a `*tls.Conn`, read the peer certificate subject:
+
+```Go
+if tlsConn, ok := m.Client.GetConn().(*tls.Conn); ok {
+    cert := tlsConn.ConnectionState().PeerCertificates[0]
+    user := cert.Subject.String()
+    // ...
+}
+```
+
+See the `examples/sasl_external_pki` directory for a complete working example: mutual TLS, a scripted PKI, authz DN rewriting and a TLS-conditional `supportedSASLMechanisms` in the Root DSE. That directory has its own README with the `ldapsearch`/`ldapwhoami` commands to exercise it.
+
 # More examples
-Look into the "examples" folder.
+
+Look into the `examples` folder:
+
+| Example | What it shows |
+|---------|---------------|
+| `simple` | Minimal server: bind and search routes |
+| `complex` | All operations, Root DSE, StartTLS, route labels |
+| `ssl` | LDAPS listener |
+| `abandon` | Handling AbandonRequest and the `m.Done` signal |
+| `cancel` | Cancel extended operation (RFC 3909), built-in and custom handling |
+| `client_data` | Per-connection data with `SetData`/`GetData` |
+| `handler_per_connection` | One handler instance per connection via `NewServerWithHandlerSource` |
+| `referrals_controls` | `SearchResultReference`, referral result codes, response controls |
+| `sasl_external_pki` | SASL/EXTERNAL over mutual TLS, with a PKI generation script |
+| `client` | Sample PHP and Python client scripts used to exercise the examples |
 
 # Tests
 
@@ -200,12 +329,15 @@ go test -v -run TestE2E # run only the E2E tests
 
 ## Unit tests
 
-- `TestConcurrentRequestListAccess` — verifies thread-safe access to the per-connection request map
-- `TestShutdownListenerRace` — checks for races during server shutdown
-- `TestValidBindRequest`, `TestValidBindAfterInvalidConnection` — raw protocol-level bind scenarios
-- `TestInvalidFirstByte_NoServerCrash`, `TestGarbageBytes_NoServerCrash` — server resilience to malformed input
-- `TestStopRefusesNewConnections` — confirms the listener is closed before `Stop()` returns
-- `TestParseCancelRequestValue*` — Cancel request value ASN.1 decoding (valid IDs, nil, invalid, trailing data, zero)
+- `TestConcurrentRequestListAccess` - verifies thread-safe access to the per-connection request map
+- `TestShutdownListenerRace` - checks for races during server shutdown
+- `TestValidBindRequest`, `TestValidBindAfterInvalidConnection` - raw protocol-level bind scenarios
+- `TestInvalidFirstByte_NoServerCrash`, `TestGarbageBytes_NoServerCrash` - server resilience to malformed input
+- `TestStopRefusesNewConnections` - confirms the listener is closed before `Stop()` returns
+- `TestParseCancelRequestValue*` - Cancel request value ASN.1 decoding (valid IDs, nil, invalid, trailing data, zero)
+- `TestClientCloseHook_UnbindPassesDataAndRunsOnce` - `OnClientClose` receives the client data and fires once on unbind
+- `TestClientCloseHook_AbruptDisconnectPassesDataAndRunsOnce` - same guarantees when the client drops the connection
+- `TestClientCloseHook_PanicDoesNotBreakStop` - a panicking `OnClientClose` hook does not prevent `Stop()` from completing
 
 ## End-to-end tests (`e2e_test.go`)
 
