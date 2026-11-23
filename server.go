@@ -14,6 +14,13 @@ type HandlerSource interface {
 
 type ClientCloseHandler func(conn net.Conn, data any)
 
+// PanicHandler is called when a per-connection goroutine recovers
+// from a panic (malformed client input or a panicking handler). The
+// offending connection is closed and the server keeps serving. Conn
+// is the client connection (use RemoteAddr for the peer address);
+// stack is the captured goroutine stack.
+type PanicHandler func(conn net.Conn, recovered any, stack []byte)
+
 // Server is an LDAP server.
 type Server struct {
 	Listener     net.Listener
@@ -36,6 +43,13 @@ type Server struct {
 	// the hook runs for every closed connection, including connections rejected
 	// by OnNewConnection or closed before SetData is called.
 	OnClientClose ClientCloseHandler
+
+	// OnPanic, if non-nil, is called when a per-connection goroutine
+	// recovers from a panic. Without it, a single malformed packet
+	// or a panicking handler crashes the whole server; with
+	// recovery, only the offending connection is dropped. When nil,
+	// the panic is reported through Logger instead.
+	OnPanic PanicHandler
 
 	// Handler handles ldap message received from client
 	// it SHOULD "implement" RequestHandler interface

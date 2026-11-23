@@ -3,6 +3,7 @@ package ldapserver
 import (
 	"bufio"
 	"net"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -91,6 +92,14 @@ func (c *client) callOnClose() {
 
 func (c *client) serve() {
 	defer c.close()
+	// A malformed packet must kill only its own connection, never
+	// the server: recover here (registered after close so the
+	// connection still tears down) and keep serving everyone else.
+	defer func() {
+		if r := recover(); r != nil {
+			c.reportPanic(r)
+		}
+	}()
 
 	c.closing = make(chan bool)
 	c.shutdownDone = make(chan struct{})
@@ -191,9 +200,35 @@ func (c *client) serve() {
 		// TODO: go/non go routine choice should be done in the ProcessRequestMessage
 		// not in the client.serve func
 		c.wg.Add(1)
-		go c.ProcessRequestMessage(&message)
+		go func() {
+			// ProcessRequestMessage defers wg.Done, so recovering
+			// here cannot wedge close(): the request still ends,
+			// only its panicking connection goes down with it.
+			defer func() {
+				if r := recover(); r != nil {
+					c.reportPanic(r)
+					c.rwc.Close()
+				}
+			}()
+			c.ProcessRequestMessage(&message)
+		}()
 	}
 
+}
+
+// reportPanic routes a recovered per-connection panic to the OnPanic
+// hook, or to Logger when no hook is set.
+func (c *client) reportPanic(recovered any) {
+	stack := debug.Stack()
+	if c.srv != nil && c.srv.OnPanic != nil {
+		c.srv.OnPanic(c.rwc, recovered, stack)
+		return
+	}
+	addr := "unknown"
+	if c.rwc != nil && c.rwc.RemoteAddr() != nil {
+		addr = c.rwc.RemoteAddr().String()
+	}
+	Logger.Printf("ldapserver: recovered panic from %s: %v\n%s", addr, recovered, stack)
 }
 
 // close closes client,
